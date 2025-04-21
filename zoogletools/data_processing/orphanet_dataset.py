@@ -7,7 +7,6 @@ import pandas as pd
 
 from zoogletools.utils import join_non_na_values, join_unique_values
 
-# Initialize locale settings
 locale.setlocale(locale.LC_ALL, "")
 
 VALMOY_DENOMINATOR = 100000
@@ -156,7 +155,26 @@ def _get_highest_prevalence_class(prevalence_classes: pd.Series) -> str:
     return highest_class if highest_class is not None else valid_classes[0]
 
 
-def process_orphanet_genes(
+@click.command()
+@click.option(
+    "--genes-filepath",
+    "-g",
+    help="Path to the Orphanet genes CSV file",
+    type=click.Path(exists=True, path_type=pathlib.Path),
+)
+@click.option(
+    "--prevalence-filepath",
+    "-p",
+    help="Path to the Orphanet prevalence CSV file",
+    type=click.Path(exists=True, path_type=pathlib.Path),
+)
+@click.option(
+    "--output-filepath",
+    "-o",
+    help="Path to save the processed output CSV file",
+    type=click.Path(path_type=pathlib.Path),
+)
+def process(
     genes_filepath: pathlib.Path,
     prevalence_filepath: pathlib.Path,
     output_filepath: pathlib.Path | None = None,
@@ -229,47 +247,6 @@ def process_orphanet_genes(
         click.echo(f"Results saved to {output_filepath}")
 
     return orphanet_prevalences
-
-
-@click.command()
-@click.option(
-    "--genes-filepath",
-    "-g",
-    help="Path to the Orphanet genes CSV file",
-    type=click.Path(exists=True, path_type=pathlib.Path),
-)
-@click.option(
-    "--prevalence-filepath",
-    "-p",
-    help="Path to the Orphanet prevalence CSV file",
-    type=click.Path(exists=True, path_type=pathlib.Path),
-)
-@click.option(
-    "--output-filepath",
-    "-o",
-    help="Path to save the processed output CSV file",
-    type=click.Path(path_type=pathlib.Path),
-)
-@click.option(
-    "--preview/--no-preview",
-    default=False,
-    help="Preview the first 5 rows of the processed data",
-)
-def process(
-    genes_filepath: pathlib.Path,
-    prevalence_filepath: pathlib.Path,
-    output_filepath: pathlib.Path,
-    preview: bool,
-) -> None:
-    """Process Orphanet genes and prevalence data and extract UniProt IDs."""
-    click.echo("Processing Orphanet genes and prevalence data...")
-    result = process_orphanet_genes(genes_filepath, prevalence_filepath, output_filepath)
-
-    if preview:
-        click.echo("\nPreview of processed data:")
-        click.echo(result.head(5))
-
-    click.echo(f"Processed {len(result)} UniProt entries")
 
 
 if __name__ == "__main__":
