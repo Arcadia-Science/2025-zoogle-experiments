@@ -1,6 +1,6 @@
 import locale
+import pathlib
 import warnings
-from pathlib import Path
 
 import click
 import pandas as pd
@@ -157,9 +157,9 @@ def _get_highest_prevalence_class(prevalence_classes: pd.Series) -> str:
 
 
 def process_orphanet_genes(
-    genes_filepath: Path,
-    prevalence_filepath: Path,
-    output_filepath: Path | None = None,
+    genes_filepath: pathlib.Path,
+    prevalence_filepath: pathlib.Path,
+    output_filepath: pathlib.Path | None = None,
 ) -> pd.DataFrame:
     """
     Process Orphanet genes and prevalence data.
@@ -236,19 +236,19 @@ def process_orphanet_genes(
     "--genes-filepath",
     "-g",
     help="Path to the Orphanet genes CSV file",
-    type=click.Path(exists=True, path_type=Path),
+    type=click.Path(exists=True, path_type=pathlib.Path),
 )
 @click.option(
     "--prevalence-filepath",
     "-p",
     help="Path to the Orphanet prevalence CSV file",
-    type=click.Path(exists=True, path_type=Path),
+    type=click.Path(exists=True, path_type=pathlib.Path),
 )
 @click.option(
     "--output-filepath",
     "-o",
     help="Path to save the processed output CSV file",
-    type=click.Path(path_type=Path),
+    type=click.Path(path_type=pathlib.Path),
 )
 @click.option(
     "--preview/--no-preview",
@@ -256,9 +256,9 @@ def process_orphanet_genes(
     help="Preview the first 5 rows of the processed data",
 )
 def process(
-    genes_filepath: Path,
-    prevalence_filepath: Path,
-    output_filepath: Path,
+    genes_filepath: pathlib.Path,
+    prevalence_filepath: pathlib.Path,
+    output_filepath: pathlib.Path,
     preview: bool,
 ) -> None:
     """Process Orphanet genes and prevalence data and extract UniProt IDs."""

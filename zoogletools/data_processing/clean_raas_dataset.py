@@ -1,5 +1,5 @@
 import os
-from pathlib import Path
+import pathlib
 
 import click
 import pandas as pd
@@ -29,19 +29,18 @@ DROPPED_COLUMNS = [
     type=click.Path(file_okay=False, dir_okay=True),
     help="Directory where the cleaned TSV files will be saved",
 )
-def process(input_dirpath: Path, output_dirpath: Path):
+def process(input_dirpath: pathlib.Path, output_dirpath: pathlib.Path):
     """
     Clean original RAAS dataset by removing unnecessary columns from TSV files.
 
     This tool processes all TSV files in the input directory and saves the cleaned
     versions to the output directory.
     """
-    click.echo(f"Cleaning RAAS dataset from {input_dirpath} to {output_dirpath}")
 
-    input_dirpath = Path(input_dirpath)
+    input_dirpath = pathlib.Path(input_dirpath)
     files = sorted(os.listdir(input_dirpath))
 
-    output_dirpath = Path(output_dirpath)
+    output_dirpath = pathlib.Path(output_dirpath)
     output_dirpath.mkdir(parents=True, exist_ok=True)
 
     for file in tqdm(files, desc="Processing files", unit="file"):
@@ -56,8 +55,6 @@ def process(input_dirpath: Path, output_dirpath: Path):
         df.drop(columns=DROPPED_COLUMNS, inplace=True)
 
         df.to_csv(output_path, sep="\t", index=False)
-
-    click.echo("Cleaning complete!")
 
 
 if __name__ == "__main__":
