@@ -1,0 +1,7 @@
+name: s3_operations
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - awscli=2.26.5
+  - python=3.12.0

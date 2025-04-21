@@ -7,6 +7,9 @@ from pathlib import Path
 configfile: "workflows/download_config.yaml"
 
 
+s3_env = "envs/s3_operations.yaml"
+url_env = "envs/url_downloads.yaml"
+
 data_dir = Path(config["data_dir"]).resolve()
 log_dir = Path(config["log_dir"]).resolve()
 
@@ -44,6 +47,8 @@ for s3_dir in config["s3_directories"]:
             params:
                 bucket=s3_dir["bucket"],
                 prefix=s3_dir["prefix"],
+            conda:
+                s3_env
             shell:
                 """
                 mkdir -p {output}
@@ -68,6 +73,8 @@ for s3_file in config["s3_files"]:
             params:
                 bucket=s3_file["bucket"],
                 key=s3_file["key"],
+            conda:
+                s3_env
             shell:
                 """
                 mkdir -p $(dirname {output})
@@ -91,6 +98,8 @@ for url_file in config["url_files"]:
                 log_dir / f"{url_file['output'].replace('/', '_')}.log",
             params:
                 url=url_file["url"],
+            conda:
+                url_env
             shell:
                 """
                 mkdir -p $(dirname {output})

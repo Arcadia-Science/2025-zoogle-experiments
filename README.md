@@ -65,7 +65,7 @@ conda activate <NAME>
 To download data for this analysis, we have a Snakemake workflow. Replace `<n>` with the number of cores you want to use.
 
 ```{bash}
-snakemake --snakefile workflows/download_data.snakefile --cores <n>
+snakemake --snakefile workflows/download_data.snakefile --use-conda --cores <n>
 ```
 
 This will download the data from the URLs specified in the `workflows/download_config.yaml` file and save it to the `data` directory.
