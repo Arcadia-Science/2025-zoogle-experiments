@@ -16,34 +16,6 @@ DROPPED_COLUMNS = [
 ]
 
 
-def clean_raas_dataset(
-    input_dirpath: Path,
-    output_dirpath: Path,
-):
-    """
-    Cleans the original RAAS dataset by dropping unnecessary columns.
-    """
-
-    input_dirpath = Path(input_dirpath)
-    files = sorted(os.listdir(input_dirpath))
-
-    output_dirpath = Path(output_dirpath)
-    output_dirpath.mkdir(parents=True, exist_ok=True)
-
-    for file in tqdm(files, desc="Processing files", unit="file"):
-        input_path = input_dirpath / file
-        output_path = output_dirpath / file
-
-        if not input_path.suffix == ".tsv":
-            print(f"Skipping non-TSV file: {input_path}")
-            continue
-
-        df = pd.read_csv(input_path, sep="\t")
-        df.drop(columns=DROPPED_COLUMNS, inplace=True)
-
-        df.to_csv(output_path, sep="\t", index=False)
-
-
 @click.command()
 @click.option(
     "--input-dirpath",
@@ -65,7 +37,26 @@ def process(input_dirpath: Path, output_dirpath: Path):
     versions to the output directory.
     """
     click.echo(f"Cleaning RAAS dataset from {input_dirpath} to {output_dirpath}")
-    clean_raas_dataset(input_dirpath, output_dirpath)
+
+    input_dirpath = Path(input_dirpath)
+    files = sorted(os.listdir(input_dirpath))
+
+    output_dirpath = Path(output_dirpath)
+    output_dirpath.mkdir(parents=True, exist_ok=True)
+
+    for file in tqdm(files, desc="Processing files", unit="file"):
+        input_path = input_dirpath / file
+        output_path = output_dirpath / file
+
+        if not input_path.suffix == ".tsv":
+            print(f"Skipping non-TSV file: {input_path}")
+            continue
+
+        df = pd.read_csv(input_path, sep="\t")
+        df.drop(columns=DROPPED_COLUMNS, inplace=True)
+
+        df.to_csv(output_path, sep="\t", index=False)
+
     click.echo("Cleaning complete!")
 
 
