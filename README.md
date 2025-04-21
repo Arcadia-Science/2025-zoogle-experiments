@@ -41,7 +41,15 @@ conda activate <NAME>
 
 ## Data
 
-TODO: Add details about the description of input / output data and links to Zenodo depositions, if applicable.
+To download data for this analysis, we have a Snakemake workflow. Replace `<n>` with the number of cores you want to use.
+
+```{bash}
+snakemake --snakefile workflows/download_data.snakefile --cores <n>
+```
+
+This will download the data from the URLs specified in the `workflows/download_config.yaml` file and save it to the `data` directory.
+
+
 
 ## Overview
 
