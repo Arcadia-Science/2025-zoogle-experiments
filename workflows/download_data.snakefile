@@ -1,3 +1,13 @@
+"""
+Snakemake workflow to download files and directories from S3 and files fromURLs.
+
+Note: this Snakefile uses dynamic rule generation to create one rule
+per file or directory to download. While this approach diverges
+from Snakemake's typical filepath-pattern-matching paradigm,
+it's used here as a convenient way to make the workflow configuration-driven
+(i.e., all output files are specified in the config file and there are no input files).
+"""
+
 import os
 from datetime import datetime
 import json
