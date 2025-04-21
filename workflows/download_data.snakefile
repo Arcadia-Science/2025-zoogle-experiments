@@ -25,7 +25,7 @@ rule all:
         *S3_DIR_OUTPUTS,
         *S3_FILE_OUTPUTS,
         *URL_FILE_OUTPUTS,
-        data_dir / "metadata.json"
+        data_dir / "metadata.json",
 
 
 # Rules for S3 directories
@@ -102,9 +102,9 @@ for url_file in config["url_files"]:
 # Rule for metadata
 rule metadata:
     input:
-        *URL_FILE_OUTPUTS
+        *URL_FILE_OUTPUTS,
     output:
-        data_dir / "metadata.json"
+        data_dir / "metadata.json",
     run:
         metadata = {
             "files": {
