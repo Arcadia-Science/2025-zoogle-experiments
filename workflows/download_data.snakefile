@@ -1,5 +1,5 @@
 """
-Snakemake workflow to download files and directories from S3 and files fromURLs.
+Snakemake workflow to download files and directories from S3 and files from URLs.
 
 Note: this Snakefile uses dynamic rule generation to create one rule
 per file or directory to download. While this approach diverges
