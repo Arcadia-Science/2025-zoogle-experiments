@@ -18,12 +18,7 @@ HGNC_REQUIRED_COLUMNS = [
 ]
 
 
-@click.group()
-def cli():
-    pass
-
-
-@cli.command()
+@click.command()
 @click.option(
     "--input-filepath",
     required=True,
@@ -80,4 +75,4 @@ def process(
 
 
 if __name__ == "__main__":
-    cli()
+    process()

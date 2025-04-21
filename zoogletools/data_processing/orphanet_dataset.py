@@ -231,12 +231,7 @@ def process_orphanet_genes(
     return orphanet_prevalences
 
 
-@click.group()
-def cli():
-    pass
-
-
-@cli.command()
+@click.command()
 @click.option(
     "--genes-filepath",
     "-g",
@@ -278,4 +273,4 @@ def process(
 
 
 if __name__ == "__main__":
-    cli()
+    process()

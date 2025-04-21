@@ -6,12 +6,7 @@ import pandas as pd
 from zoogletools.utils import join_unique_values
 
 
-@click.group()
-def cli():
-    pass
-
-
-@cli.command()
+@click.command()
 @click.option(
     "--input-filepath",
     required=True,
@@ -51,4 +46,4 @@ def process(
 
 
 if __name__ == "__main__":
-    cli()
+    process()

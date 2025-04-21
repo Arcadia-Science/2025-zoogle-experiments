@@ -1,0 +1,73 @@
+import os
+from pathlib import Path
+
+import click
+import pandas as pd
+from tqdm import tqdm
+
+# These columns are redundant with new columns that will be appended later.
+DROPPED_COLUMNS = [
+    "associated_gene",
+    "disease_name",
+    "concept_id",
+    "source_name",
+    "source_id",
+    "disease_mim",
+]
+
+
+def clean_raas_dataset(
+    input_dirpath: Path,
+    output_dirpath: Path,
+):
+    """
+    Cleans the original RAAS dataset by dropping unnecessary columns.
+    """
+
+    input_dirpath = Path(input_dirpath)
+    files = sorted(os.listdir(input_dirpath))
+
+    output_dirpath = Path(output_dirpath)
+    output_dirpath.mkdir(parents=True, exist_ok=True)
+
+    for file in tqdm(files, desc="Processing files", unit="file"):
+        input_path = input_dirpath / file
+        output_path = output_dirpath / file
+
+        if not input_path.suffix == ".tsv":
+            print(f"Skipping non-TSV file: {input_path}")
+            continue
+
+        df = pd.read_csv(input_path, sep="\t")
+        df.drop(columns=DROPPED_COLUMNS, inplace=True)
+
+        df.to_csv(output_path, sep="\t", index=False)
+
+
+@click.command()
+@click.option(
+    "--input-dirpath",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Directory containing the input TSV files",
+)
+@click.option(
+    "--output-dirpath",
+    required=True,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="Directory where the cleaned TSV files will be saved",
+)
+def process(input_dirpath: Path, output_dirpath: Path):
+    """
+    Clean original RAAS dataset by removing unnecessary columns from TSV files.
+
+    This tool processes all TSV files in the input directory and saves the cleaned
+    versions to the output directory.
+    """
+    click.echo(f"Cleaning RAAS dataset from {input_dirpath} to {output_dirpath}")
+    clean_raas_dataset(input_dirpath, output_dirpath)
+    click.echo("Cleaning complete!")
+
+
+if __name__ == "__main__":
+    process()
