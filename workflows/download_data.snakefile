@@ -10,12 +10,10 @@ configfile: "workflows/download_config.yaml"
 data_dir = Path(config["data_dir"]).resolve()
 log_dir = Path(config["log_dir"]).resolve()
 
-# Define all outputs upfront
 S3_DIR_OUTPUTS = [data_dir / s3_dir["local_dir"] for s3_dir in config["s3_directories"]]
 S3_FILE_OUTPUTS = [data_dir / s3_file["output"] for s3_file in config["s3_files"]]
 URL_FILE_OUTPUTS = [data_dir / url_file["output"] for url_file in config["url_files"]]
 
-# Create output directories
 os.makedirs(data_dir, exist_ok=True)
 os.makedirs(log_dir, exist_ok=True)
 
@@ -28,7 +26,10 @@ rule all:
         data_dir / "metadata.json",
 
 
-# Rules for S3 directories
+# These rules are programmatically generated, following the pattern in this StackOverflow answer:
+# https://stackoverflow.com/questions/77244937
+
+# Rules for S3 directories.
 for s3_dir in config["s3_directories"]:
 
     def create_s3_dir_rule(s3_dir=s3_dir):
@@ -52,7 +53,7 @@ for s3_dir in config["s3_directories"]:
     create_s3_dir_rule()
 
 
-# Rules for S3 single files
+# Rules for S3 single files.
 for s3_file in config["s3_files"]:
 
     def create_s3_file_rule(s3_file=s3_file):
@@ -76,7 +77,7 @@ for s3_file in config["s3_files"]:
     create_s3_file_rule()
 
 
-# Rules for URL files
+# Rules for URL files.
 for url_file in config["url_files"]:
 
     def create_url_file_rule(url_file=url_file):
@@ -99,7 +100,7 @@ for url_file in config["url_files"]:
     create_url_file_rule()
 
 
-# Rule for metadata
+# Rule for metadata. This records the source, accessed date, and size of each file.
 rule metadata:
     input:
         *URL_FILE_OUTPUTS,
