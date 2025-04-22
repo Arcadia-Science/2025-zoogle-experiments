@@ -1,0 +1,8 @@
+name: url_downloads
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - awscli=2.26.5
+  - curl=8.12.1
+  - python=3.12.0
