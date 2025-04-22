@@ -1,0 +1,39 @@
+# General configuration
+data_dir: "data"
+log_dir: "logs"
+
+# S3 directory downloads
+s3_directories:
+  - bucket: "2025-organism-selection-portal"
+    prefix: "per-nonref-species/"
+    local_dir: "per-nonref-species"
+  - bucket: "2025-organism-selection-portal"
+    prefix: "per-ref-protein/"
+    local_dir: "per-ref-protein"
+  - bucket: "arcadia-compass-staging"
+    prefix: "processed/orphanet/"
+    local_dir: "orphanet"
+  - bucket: "arcadia-raas-organism-prioritization"
+    prefix: "conservation_score_v2_06012024/gf-aa-multivar-distances/final_protein_pair_summary_tables/"
+    local_dir: "raas_final_protein_pair_summary_tables"
+
+# Single S3 file downloads
+s3_files:
+  - bucket: "2025-organism-selection-portal"
+    key: "id-mapping.tsv"
+    output: "id-mapping.tsv"
+
+# URL file downloads
+url_files:
+  - url: "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/gene_condition_source_id"
+    output: "gene_condition_source_id.tsv"
+    description: "ClinVar gene-condition-source-id mapping"
+  - url: "https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt"
+    output: "hgnc_complete_set.tsv"
+    description: "HGNC complete gene set"
+  - url: "https://raw.githubusercontent.com/Arcadia-Science/2024-organismal-selection/f33d76b33ca6fee206a95da98ad3d90d8bfff50c/data/metadata.csv"
+    output: "organism_metadata.csv"
+    description: "Arcadia Science organismal selection metadata"
+  - url: "https://raw.githubusercontent.com/Arcadia-Science/2024-organismal-selection/b1c819af771a98b2d7b627f3397bc62cef71737d/data/congruified_spprax_species_tree.newick"
+    output: "congruified_spprax_species_tree.newick"
+    description: "Congruified species tree from speciesRAX"

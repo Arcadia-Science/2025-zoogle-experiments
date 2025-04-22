@@ -1,12 +1,33 @@
-# TODO: Replace with the name of the repo
+# 2025-zoogle-collabs
 
 [![run with conda](https://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/projects/miniconda/en/latest/)
 
-Note: Analysis repo names should be prefixed with the year (ie `2024-noveltree-analysis`)
-
 ## Purpose
 
-TODO: Briefly describe the core analyses performed in the repository and the motivation behind them.
+This repository contains the code for the 2025 Zoogle collabs. This includes code and utilities for the following analyses.
+[TBI] indicates that the code has been implemented in another branch but needs polishing before it's ready for review.
+
+### Organism selection data download and processing
+1. Download organism selection data and human disease data from S3 and URLs. This includes data from the following sources:
+    - Original RAAS dataset from back in 2024 [here](https://github.com/Arcadia-Science/raas-organism-prioritization). This is different from the published Zenodo dataset because it includes bootstrapped row- and column-wise p-values, which were used to generate the Discovery score in Compass.
+    - Processed Orphanet data from Compass.
+    - ClinVar gene-condition-source-id mapping.
+    - HGNC gene set.
+    - Species tree from speciesRAX.
+1. [TBI] Process downloaded data so that it's tidy and usable for filtering scripts.
+1. [TBI] Run filtering scripts.
+
+### Salpingoeca rosetta RNA-Seq analysis.
+1. [TBI] Download processed RNA-Seq data from Figshare.
+1. [TBI] Generate scatter plots of S. rosetta gene expression.
+
+### Ciona scRNA-Seq and RNA-Seq analysis.
+1. [TBI] Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
+1. [TBI] Generate scatter plots and other plots of Ciona gene expression.
+
+### Utilities
+1. [TBI] Utility to generate a scatter plot of best hits from each organism for a given gene, *a la* the organism selection publication.
+2. [TBI] `dash` app for exploring the Ciona scRNA-Seq data.
 
 ## Installation and Setup
 
@@ -41,7 +62,14 @@ conda activate <NAME>
 
 ## Data
 
-TODO: Add details about the description of input / output data and links to Zenodo depositions, if applicable.
+To download data for this analysis, we have a Snakemake workflow. Replace `<n>` with the number of cores you want to use.
+
+```{bash}
+snakemake --snakefile workflows/download_data.snakefile --use-conda --cores <n>
+```
+
+This will download the data from the URLs specified in the `workflows/download_config.yaml` file and save it to the `data` directory.
+
 
 ## Overview
 
