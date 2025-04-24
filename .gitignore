@@ -82,3 +82,21 @@ venv/
 # Nextflow related folders and files
 .nextflow*
 work/
+
+# Full dataset files
+data/2024-organism-selection-zenodo
+data/temp_download.zip
+data/per-nonref-species
+data/per-ref-protein
+data/orphanet
+data/raas_final_protein_pair_summary_tables
+data/raas_cleaned
+data/*os-portal-reprocessed
+data/osfstorage-archive
+
+# Test data
+data-test/
+
+# Deprecated notebooks and analyses
+notebooks/old
+notebooks/archive
