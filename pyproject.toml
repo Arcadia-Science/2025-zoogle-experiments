@@ -1,11 +1,19 @@
 [project]
-name = "TODO: Tool name"
-description = "TODO: Tool description"
-version = "0.0.0"
+name = "zoogletools"
+description = "Python scripts and tools to use with Zoogle/organism selection"
+version = "0.0.1"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.optional-dependencies]
+dev = [
+    "jupyter",
+]
 
 [tool.ruff]
 # The directories to consider when resolving first- vs. third-party imports
