@@ -1,5 +1,9 @@
 # Processing organism selection data to include p-values
 
+## Data versions
+In this repo, we don't use the dataset that was uploaded to Zenodo. Instead, we use the original organism selection dataset found in S3 as a starting point, which is the same dataset that had been used in the previous RAAS/ Compass repos.
+
+
 ## Dataset Descriptions
 The current organism selection dataset uploaded to Zenodo contains the following columns:
 - `gene_family`
