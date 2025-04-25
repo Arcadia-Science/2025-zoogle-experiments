@@ -1,3 +1,11 @@
+"""
+This script processes the organism-selection dataset to prepare it for the portal.
+It concatenates the per-orthogroup TSV files into a single TSV file,
+and appends the ranks and other information to the dataset.
+
+This is derived from the `os_dataset.py` script in the `2025-organism-selection-portal` repo.
+"""
+
 import os
 import pathlib
 import shutil
