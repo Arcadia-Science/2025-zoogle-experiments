@@ -14,7 +14,7 @@ This repository contains the code for the 2025 Zoogle collabs. This includes cod
     - ClinVar gene-condition-source-id mapping.
     - HGNC gene set.
     - Species tree from speciesRAX.
-1. [TBI] Process downloaded data so that it's tidy and usable for filtering scripts.
+1. Process downloaded data so that it's tidy and usable for filtering scripts.
 1. [TBI] Run filtering scripts.
 
 ### Salpingoeca rosetta RNA-Seq analysis.

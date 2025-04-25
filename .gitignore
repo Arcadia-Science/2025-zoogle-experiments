@@ -93,6 +93,8 @@ data/raas_final_protein_pair_summary_tables
 data/raas_cleaned
 data/*os-portal-reprocessed
 data/osfstorage-archive
+data/ciona-gene-models
+data/Cirobu_RNASeq
 
 # Test data
 data-test/
