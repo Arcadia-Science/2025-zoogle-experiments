@@ -1,5 +1,7 @@
-# This script is based on the `hgnc_dataset.py` script in the `2025-organism-selection-portal` repo.
-# Some additional comments are used to explain the changes made to the original script.
+"""
+This script is based on the `hgnc_dataset.py` script in the `2025-organism-selection-portal` repo.
+Some additional comments are used to explain the changes made to the original script.
+"""
 
 import pathlib
 

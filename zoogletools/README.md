@@ -74,7 +74,7 @@ To get the re-processed dataset with p-values, run the following commands from t
     --output-filepath data/YYYY-MM-DD-orphanet-processed.tsv
     ```
 
-    5. Merge the disease datasets.
+    5. Merge the processed HGNC, ClinVar, and Orphanet datasets into a single TSV file.
     ```{bash}
     python zoogletools/data_processing/merge_disease_datasets.py \
     --hgnc-filepath data/YYYY-MM-DD-hgnc-processed.tsv \
@@ -83,7 +83,7 @@ To get the re-processed dataset with p-values, run the following commands from t
     --output-filepath data/YYYY-MM-DD-merged-disease-datasets.tsv
     ```
 
-    6. Process the concatenated dataset with the hgnc dataset.
+    6. Process the concatenated OS dataset (from step 1 above) and merge it with the HGNC dataset.
     ```{bash}
     python zoogletools/data_processing/os_dataset.py process \
     --dataset-filepath data/YYYY-MM-DD-concatenated-os-dataset.tsv \
@@ -91,7 +91,7 @@ To get the re-processed dataset with p-values, run the following commands from t
     --output-dirpath data/YYYY-MM-DD-os-portal-reprocessed
     ```
 
-    7. Run a sanity check on the final output files.
+    7. Run a sanity check on the final OS dataset.
     ```{bash}
     python zoogletools/data_processing/os_dataset.py sanity-check \
     --dataset-filepath data/YYYY-MM-DD-concatenated-os-dataset.tsv \
