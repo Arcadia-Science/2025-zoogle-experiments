@@ -1,10 +1,9 @@
+from abc import ABC, abstractmethod
+from enum import Enum
 from pathlib import Path
 
 import pandas as pd
 
-from zoogletools.constants import (
-    DATA_DIR,
-)
 from zoogletools.utils import (
     create_marrvel_url,
     create_omim_url,
@@ -13,12 +12,19 @@ from zoogletools.utils import (
     create_zoogle_url,
 )
 
-CLINVAR_DISEASES = DATA_DIR / "2025-03-20-disease-data.tsv"
+# Column name constants
+PORTFOLIO_RANK = "portfolio_rank"
+TRAIT_DISTANCE = "trait_distance"
+PVALUE_ROWWISE = "pvalue_rowwise"
+PVALUE_COLWISE = "pvalue_colwise"
+HOMOLOG_COUNT = "orthogroup_homolog_count"
+DISEASE_ASSOCIATION = "associated_with_disease"
+MONODISEASE = "monodisease"
 
 
 def generate_minimum_rank_comparison_data(
     organism: str,
-    data_dir: str | Path = DATA_DIR,
+    data_dir: str | Path,
 ):
     data_dir = Path(data_dir)
     mouse_data = pd.read_csv(data_dir / f"per-nonref-species/{organism}.tsv", sep="\t")
@@ -35,133 +41,242 @@ def generate_minimum_rank_comparison_data(
     return results
 
 
+class Filter(ABC):
+    """Base class for data filters."""
+
+    name: str
+
+    @abstractmethod
+    def apply(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Apply the filter to the data.
+
+        Args:
+            data: Input DataFrame to filter
+
+        Returns:
+            Filtered DataFrame
+        """
+        pass
+
+
+class FilteringPipeline:
+    """Pipeline for applying a sequence of filters to data."""
+
+    def __init__(self):
+        self.filters = []
+        self._last_run_stats: list[dict] | None = None
+
+    def add_filter(self, filter: Filter):
+        """Add a filter to the pipeline."""
+        self.filters.append(filter)
+
+    def apply(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Apply all filters in the pipeline to the data.
+
+        Args:
+            data: Input DataFrame to filter
+
+        Returns:
+            Filtered DataFrame
+        """
+        current_data = data
+        stats = []
+
+        for filter in self.filters:
+            input_count = len(current_data)
+            current_data = filter.apply(current_data)
+            stats.append(
+                {
+                    "filter_name": filter.name,
+                    "input_count": input_count,
+                    "output_count": len(current_data),
+                }
+            )
+
+        self._last_run_stats = stats
+        return current_data
+
+    def get_last_stats(self) -> dict:
+        """Get statistics from the most recent pipeline run.
+
+        Returns:
+            dict: Statistics including total rows and filter counts
+        """
+        if self._last_run_stats is None:
+            return {}
+
+        stats = {"total_count": self._last_run_stats[0]["input_count"]}
+        for filter_stats in self._last_run_stats:
+            stats[f"{filter_stats['filter_name']}_count"] = filter_stats["output_count"]
+        return stats
+
+
+class PortfolioRankFilter(Filter):
+    def __init__(self, max_rank: int):
+        super().__init__()
+        self.max_rank = max_rank
+        self.name = PORTFOLIO_RANK
+
+    def apply(self, data: pd.DataFrame) -> pd.DataFrame:
+        filtered_data = data[data[PORTFOLIO_RANK] <= self.max_rank]
+        return filtered_data
+
+
+class TraitDistanceFilter(Filter):
+    def __init__(self, max_distance: int):
+        super().__init__()
+        self.max_distance = max_distance
+        self.name = TRAIT_DISTANCE
+
+    def apply(self, data: pd.DataFrame) -> pd.DataFrame:
+        filtered_data = data[data[TRAIT_DISTANCE] <= self.max_distance]
+        return filtered_data
+
+
+class PValueType(Enum):
+    ROWWISE = "pvalue_rowwise"
+    COLWISE = "pvalue_colwise"
+
+
+class PValueFilter(Filter):
+    def __init__(self, max_pvalue: float, pvalue_type: str):
+        super().__init__()
+        self.max_pvalue = max_pvalue
+        try:
+            self.pvalue_type = PValueType(pvalue_type).value
+        except ValueError as err:
+            raise ValueError(
+                f"pvalue_type must be one of {[e.value for e in PValueType]}, got {pvalue_type}"
+            ) from err
+        self.name = self.pvalue_type
+
+    def apply(self, data: pd.DataFrame) -> pd.DataFrame:
+        filtered_data = data[data[self.pvalue_type] <= self.max_pvalue]
+        return filtered_data
+
+
+class HomologCountFilter(Filter):
+    def __init__(self, max_count: int):
+        super().__init__()
+        self.max_count = max_count
+        self.name = HOMOLOG_COUNT
+
+    def apply(self, data: pd.DataFrame) -> pd.DataFrame:
+        filtered_data = data[data[HOMOLOG_COUNT] <= self.max_count]
+        return filtered_data
+
+
+class DiseaseAssociationFilter(Filter):
+    def __init__(self):
+        super().__init__()
+        self.name = DISEASE_ASSOCIATION
+
+    def apply(self, data: pd.DataFrame) -> pd.DataFrame:
+        # "symbol" is a column name only found in the processed disease data.
+        # Rows missing a value in this column are not associated with a disease.
+        filtered_data = data[data["symbol"].notna()]
+        return filtered_data
+
+
+class MonoDiseaseFilter(Filter):
+    def __init__(self):
+        super().__init__()
+        self.name = MONODISEASE
+
+    def apply(self, data: pd.DataFrame) -> pd.DataFrame:
+        filtered_data = data[data["disease_count"] == 1]
+        return filtered_data
+
+
+DefaultFilteringPipeline = FilteringPipeline()
+DefaultFilteringPipeline.add_filter(
+    PValueFilter(max_pvalue=0.05, pvalue_type=PValueType.COLWISE.value)
+)
+DefaultFilteringPipeline.add_filter(DiseaseAssociationFilter())
+DefaultFilteringPipeline.add_filter(HomologCountFilter(max_count=1))
+DefaultFilteringPipeline.add_filter(MonoDiseaseFilter())
+
+
 def filter_organism_proteins(
     target_organism: str,
-    comparison_organisms: list[str] | None = None,
-    max_portfolio_rank: int | None = None,
-    max_pvalue_rowwise: float | None = None,
-    max_pvalue_colwise: float | None = None,
-    max_trait_distance: int | None = None,
-    max_homolog_count: int | None = None,
-    filter_monodisease: bool = True,
-    filter_comparison_organism_ranks: bool = False,
-    filter_comparsion_organism_homologs: bool = False,
-    data_dir: str | Path = DATA_DIR,
+    data_dirpath: str | Path,
+    disease_data_filepath: str | Path,
+    filtering_pipeline: FilteringPipeline = DefaultFilteringPipeline,
 ) -> tuple[pd.DataFrame, dict]:
     filter_counts = dict()
 
-    data_dir = Path(data_dir)
+    data_dirpath = Path(data_dirpath)
+    data_filepath = data_dirpath / f"per-nonref-species/{target_organism}.tsv"
 
-    data = pd.read_csv(data_dir / f"per-nonref-species/{target_organism}.tsv", sep="\t")
-    filter_counts["total"] = len(data)
+    data = pd.read_csv(data_filepath, sep="\t")
+    disease_data = pd.read_csv(disease_data_filepath, sep="\t")
 
-    if max_portfolio_rank:
-        data = data[data["portfolio_rank"] <= max_portfolio_rank]
-        filter_counts[f"portfolio_rank <= {max_portfolio_rank}"] = len(data)
+    data = data.merge(disease_data, left_on="ref_protein", right_on="uniprot_id", how="left")
 
-    if max_trait_distance:
-        data = data[data["trait_dist"] <= max_trait_distance]
-        filter_counts[f"trait_distance <= {max_trait_distance}"] = len(data)
-
-    if max_pvalue_colwise:
-        data = data[data["pvalue_colwise"] <= max_pvalue_colwise]
-        filter_counts[f"pvalue_colwise <= {max_pvalue_colwise}"] = len(data)
-
-    if max_pvalue_rowwise:
-        data = data[data["pvalue_rowwise"] <= max_pvalue_rowwise]
-        filter_counts[f"pvalue_rowwise <= {max_pvalue_rowwise}"] = len(data)
-
-    if max_homolog_count:
-        data = data[data["orthogroup_homolog_count"] <= max_homolog_count]
-        filter_counts[f"orthogroup_homolog_count <= {max_homolog_count}"] = len(data)
-
-    clinvar_diseases = pd.read_csv(CLINVAR_DISEASES, sep="\t")
-    data = data.merge(clinvar_diseases, how="left", left_on="hgnc_gene_symbol", right_on="symbol")
-    data = data[data["symbol"].notna()]
-
-    filter_counts["associated_with_disease"] = len(data)
-
-    if filter_monodisease:
-        data = data[data["disease_count"] == 1]
-        filter_counts["monodisease"] = len(data)
-
-    if comparison_organisms:
-        for organism in comparison_organisms:
-            comparison_data = generate_minimum_rank_comparison_data(organism)
-            data = data.merge(
-                comparison_data, how="left", left_on="hgnc_gene_symbol", right_on="hgnc_gene_symbol"
-            )
-
-    if filter_comparison_organism_ranks:
-        for organism in comparison_organisms:
-            data = data[data[f"{organism}_min_rank"] > data["portfolio_rank"]]
-        filter_counts["comparison_organism_rank"] = len(data)
-
-    if filter_comparsion_organism_homologs:
-        for organism in comparison_organisms:
-            data = data[
-                data[f"{organism}_orthogroup_homolog_count"] >= data["orthogroup_homolog_count"]
-            ]
-        filter_counts["comparison_organism_homologs"] = len(data)
+    data = filtering_pipeline.apply(data)
+    filter_counts = filtering_pipeline.get_last_stats()
 
     return data, filter_counts
 
 
+def _create_url_column(
+    df: pd.DataFrame,
+    url_creator: callable,
+    *column_names: str,
+    column_name: str,
+) -> None:
+    """Helper function to create URL columns in a DataFrame.
+
+    Args:
+        df: DataFrame to add URL column to
+        url_creator: Function that creates the URL
+        *column_names: Column names to pass to url_creator
+        column_name: Name of the new URL column
+    """
+    df[column_name] = df.apply(
+        lambda row: url_creator(*[row[col] for col in column_names])
+        if all(pd.notna(row[col]) for col in column_names)
+        else None,
+        axis=1,
+    )
+
+
 def create_final_filtered_sheet(
-    input_path: str,
+    input_data: pd.DataFrame,
     output_path: str,
-):
+) -> pd.DataFrame:
     """
     Joins two TSV files (genes and IDs) and adds columns with URLs to external resources.
 
     Args:
-        genes_tsv_path (str): Path to the TSV file containing genes data
-        ids_tsv_path (str): Path to the TSV file containing IDs data
-        output_tsv_path (str): Path where the output TSV will be saved
+        input_path: Path to the input TSV file
+        output_path: Path where the output TSV will be saved
 
     Returns:
-        pd.DataFrame: The joined DataFrame with added URL columns
+        pd.DataFrame: The processed DataFrame with added URL columns
     """
-    # Columns from the HGNC IDs file.
     omim_col = "omim_id"
     orphanet_col = "orphanet"
     uniprot_col = "uniprot_id"
     ensembl_col = "ensembl_gene_id"
     entrez_col = "entrez_id"
-
-    # Columns from the genes file.
     gene_symbol_col = "hgnc_gene_symbol"
 
-    input_data = pd.read_csv(input_path, sep="\t")
+    result_data = input_data.copy()
 
-    input_data["zoogle_url"] = input_data.apply(
-        lambda row: create_zoogle_url(row[gene_symbol_col], row[uniprot_col])
-        if pd.notna(row[uniprot_col])
-        else None,
-        axis=1,
+    _create_url_column(
+        result_data, create_zoogle_url, gene_symbol_col, uniprot_col, column_name="zoogle_url"
     )
-    input_data["omim_url"] = input_data.apply(
-        lambda row: create_omim_url(row[gene_symbol_col], row[omim_col])
-        if pd.notna(row[omim_col])
-        else None,
-        axis=1,
+    _create_url_column(
+        result_data, create_omim_url, gene_symbol_col, omim_col, column_name="omim_url"
     )
-    input_data["orphanet_url"] = input_data.apply(
-        lambda row: create_orphanet_url(row[gene_symbol_col], row[orphanet_col])
-        if pd.notna(row[orphanet_col])
-        else None,
-        axis=1,
+    _create_url_column(
+        result_data, create_orphanet_url, gene_symbol_col, orphanet_col, column_name="orphanet_url"
     )
-    input_data["opentargets_url"] = input_data.apply(
-        lambda row: create_opentargets_url(row[ensembl_col])
-        if pd.notna(row[ensembl_col])
-        else None,
-        axis=1,
+    _create_url_column(
+        result_data, create_opentargets_url, ensembl_col, column_name="opentargets_url"
     )
-    input_data["marrvel_url"] = input_data.apply(
-        lambda row: create_marrvel_url(row[entrez_col]) if pd.notna(row[entrez_col]) else None,
-        axis=1,
-    )
+    _create_url_column(result_data, create_marrvel_url, entrez_col, column_name="marrvel_url")
 
     # Final columns to add to file.
     final_columns = {
@@ -183,16 +298,11 @@ def create_final_filtered_sheet(
         "marrvel_url": "marrvel",
     }
 
-    # Add additional columns (for organism-specific ranks and homolog counts)
-    # that are not in the final_columns dictionary.
-    additional_columns = [
-        col
-        for col in input_data.columns
-        if "_min_rank" in col or "_orthogroup_homolog_count" in col
-    ]
-    final_df = input_data[list(final_columns.keys()) + additional_columns]
+    final_df = result_data[list(final_columns.keys())].copy()
 
     final_df.rename(columns=final_columns, inplace=True)
+    final_df.sort_values(by="percentile", ascending=True, inplace=True)
+    final_df.reset_index(drop=True, inplace=True)
     final_df.to_csv(output_path, sep="\t", index=False)
 
     return final_df
