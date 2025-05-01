@@ -87,9 +87,9 @@ This will download the data from the URLs specified in the `workflows/download_c
 
 This repository contains the following folders:
 - `data`: Contains the data for the analysis.
-- `notebooks`: Contains the notebooks for the analysis.
+- `notebooks`: Contains notebooks that frame the analyses.
 - `workflows`: Contains the Snakemake workflow for downloading the data.
-- `zoogletools`: Contains the source code for the analysis.
+- `zoogletools`: A pip-installable Python package containing the source code for the filtering pipeline and other utilities.
 
 
 ### Methods
