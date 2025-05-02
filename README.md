@@ -18,8 +18,8 @@ This repository contains the code for the 2025 Zoogle collabs. This includes cod
 1. Run filtering scripts.
 
 ### Salpingoeca rosetta RNA-Seq analysis.
-1. [TBI] Download processed RNA-Seq data from Figshare.
-1. [TBI] Generate scatter plots of S. rosetta gene expression.
+1. Download processed RNA-Seq data from Figshare.
+2. Generate bar plots and heatmaps of *Salpingoeca rosetta* gene expression.
 
 ### Ciona scRNA-Seq and RNA-Seq analysis.
 1. [TBI] Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
