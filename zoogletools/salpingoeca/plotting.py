@@ -1,4 +1,5 @@
 from difflib import get_close_matches
+from enum import Enum
 
 import arcadia_pycolor as apc
 import pandas as pd
@@ -41,6 +42,17 @@ def create_salpingoeca_id_mapping(
     results_filepath: str,
     diffex_filepath: str,
 ):
+    """Create a mapping between HGNC gene symbols and Salpingoeca protein IDs.
+
+    Args:
+        results_filepath: Path to Zoogle results TSV file containing HGNC gene symbols
+            and Salpingoeca protein IDs
+        diffex_filepath: Path to Leon et al differential expression TSV file containing
+            Uniprot IDs for expressed proteins
+
+    Returns:
+        dict: Mapping from HGNC gene symbols to their corresponding Salpingoeca protein IDs
+    """
     salpingoeca_results = pd.read_csv(
         results_filepath, sep="\t", usecols=["hgnc_gene_symbol", "nonref_protein"]
     )
@@ -59,10 +71,19 @@ def create_salpingoeca_id_mapping(
     )
 
 
-def _convert_expression_rows_to_boxplot_df(expression_rows):
+def _convert_expression_rows_to_boxplot_df(expression_rows: pd.DataFrame) -> pd.DataFrame:
+    """Convert expression data rows into a format suitable for boxplot visualization.
+
+    Args:
+        expression_rows: DataFrame containing expression data with condition and replicate columns
+
+    Returns:
+        DataFrame with columns 'Cell type' and 'TPM' suitable for boxplot creation
+    """
     cell_types = []
     tpm_values = []
 
+    # Replicate columns for each condition, as found in the Leon et al differential expression file.
     condition1_replicates = ["Cond 1a", "Cond 1b", "Cond 1c"]
     condition2_replicates = ["Cond 2a", "Cond 2b", "Cond 2c"]
 
@@ -82,7 +103,13 @@ def _convert_expression_rows_to_boxplot_df(expression_rows):
     return pd.DataFrame({"Cell type": cell_types, "TPM": tpm_values})
 
 
-def _create_boxplot_traces(boxplot_df, showlegend=False):
+def _create_boxplot_traces(boxplot_df: pd.DataFrame, showlegend: bool = False) -> list[go.Box]:
+    """Create boxplot traces for each cell type.
+
+    Args:
+        boxplot_df: DataFrame containing cell type and TPM values
+        showlegend: Whether to show the legend for the boxplot traces
+    """
     traces = []
     for stage in SALPINGOECA_EXPRESSION_STAGES:
         traces.append(
@@ -97,7 +124,16 @@ def _create_boxplot_traces(boxplot_df, showlegend=False):
     return traces
 
 
-def _create_save_fig_config(width, height):
+def _create_save_fig_config(width: int, height: int) -> dict:
+    """Create configuration for saving figures as SVGs.
+
+    Args:
+        width: Width of the figure
+        height: Height of the figure
+
+    Returns:
+        dict: Configuration for saving figures
+    """
     config = {
         "toImageButtonOptions": {
             "format": "svg",
@@ -108,7 +144,21 @@ def _create_save_fig_config(width, height):
     return config
 
 
-def _load_expression_rows(expression_filepath: str, salpingoeca_map_ids: dict, symbol: str):
+def _load_expression_rows(
+    expression_filepath: str, salpingoeca_map_ids: dict, symbol: str
+) -> pd.DataFrame:
+    """Load expression rows for a given symbol.
+    Each row in the differential expression TSV file contains the expression data for a single
+        pairwise comparison of a given gene's expression between two conditions.
+
+    Args:
+        expression_filepath: Path to the differential expression TSV file
+        salpingoeca_map_ids: Dictionary mapping HGNC gene symbols to Salpingoeca protein IDs
+        symbol: HGNC gene symbol to search for
+
+    Returns:
+        pd.DataFrame: Expression rows for the given symbol
+    """
     expression_df = pd.read_csv(expression_filepath, sep="\t")
     try:
         expression_rows = expression_df[expression_df["Uniprot ID"] == salpingoeca_map_ids[symbol]]
@@ -126,11 +176,25 @@ def plot_expression_boxplot(
     symbol: str,
     expression_filepath: pd.DataFrame,
     salpingoeca_map_ids: dict,
+    width: int = 800,
+    height: int = 600,
     output_image_filepath: str = None,
     output_html_filepath: str = None,
-    width=800,
-    height=600,
 ):
+    """Plot the expression of a given symbol in the form of a boxplot.
+
+    Args:
+        symbol: HGNC gene symbol to plot
+        expression_filepath: Path to the differential expression TSV file
+        salpingoeca_map_ids: Dictionary mapping HGNC gene symbols to Salpingoeca protein IDs
+        output_image_filepath: Path to save the output image file
+        output_html_filepath: Path to save the output HTML file
+        width: Width of the figure
+        height: Height of the figure
+
+    Returns:
+        fig: Plotly figure
+    """
     expression_rows = _load_expression_rows(expression_filepath, salpingoeca_map_ids, symbol)
     boxplot_df = _convert_expression_rows_to_boxplot_df(expression_rows)
 
@@ -164,7 +228,25 @@ def plot_expression_boxplot(
     return fig
 
 
-def _get_significance_matrix(expression_rows):
+class StatisticalMeasure(Enum):
+    """Enum for statistical significance measures"""
+
+    P_VALUE = "p-value"
+    Q_VALUE = "q-value"
+
+
+def _get_significance_matrix(
+    expression_rows: pd.DataFrame, measure: StatisticalMeasure = StatisticalMeasure.Q_VALUE
+) -> pd.DataFrame:
+    """Create a matrix of p- or q-values for the pairwise comparisons of expression
+        between conditions.
+
+    Args:
+        expression_rows: DataFrame containing expression data with condition and replicate columns
+
+    Returns:
+        pd.DataFrame: Significance matrix with cell types as rows and columns
+    """
     significance_matrix = {
         stage1: {
             stage2: -1 if stage1 == stage2 else None for stage2 in SALPINGOECA_EXPRESSION_STAGES
@@ -180,7 +262,7 @@ def _get_significance_matrix(expression_rows):
                 ]
 
                 if not pair_data.empty:
-                    significance_matrix[cond1][cond2] = pair_data.iloc[0]["q-value"]
+                    significance_matrix[cond1][cond2] = pair_data.iloc[0][measure.value]
 
     sig_df = pd.DataFrame(significance_matrix)
 
@@ -190,7 +272,7 @@ def _get_significance_matrix(expression_rows):
     return sig_df
 
 
-def categorize_pvalue(p):
+def _categorize_pvalue(p: float) -> float:
     if p == -1:
         return 0  # Diagonal
     elif p < 0.001:
@@ -203,7 +285,7 @@ def categorize_pvalue(p):
         return 1
 
 
-def create_pvalue_label(p):
+def _create_pvalue_label(p: float) -> str:
     significance = f"<b>q-value:</b> {p}<br>"
 
     if p == -1:
@@ -218,9 +300,17 @@ def create_pvalue_label(p):
         return significance + " (n.s.)"
 
 
-def _create_heatmap_trace(sig_df):
-    categorical_df = sig_df.map(lambda x: categorize_pvalue(x) if not pd.isna(x) else x)
-    labels = sig_df.map(lambda x: create_pvalue_label(x))
+def _create_heatmap_trace(sig_df: pd.DataFrame) -> go.Heatmap:
+    """Create a heatmap trace for a significance matrix.
+
+    Args:
+        sig_df: DataFrame containing p- or q-values
+
+    Returns:
+        go.Heatmap: Heatmap trace
+    """
+    categorical_df = sig_df.map(lambda x: _categorize_pvalue(x) if not pd.isna(x) else x)
+    labels = sig_df.map(lambda x: _create_pvalue_label(x))
 
     return go.Heatmap(
         z=categorical_df.values,
@@ -235,8 +325,28 @@ def _create_heatmap_trace(sig_df):
 
 
 def plot_significance_heatmap(
-    target, expression_filepath, salpingoeca_map_ids, width=470, height=400
+    target: str,
+    expression_filepath: pd.DataFrame,
+    salpingoeca_map_ids: dict,
+    width: int = 470,
+    height: int = 400,
+    output_image_filepath: str = None,
+    output_html_filepath: str = None,
 ):
+    """Plot the significance of a given symbol in the form of a heatmap.
+
+    Args:
+        target: HGNC gene symbol to plot
+        expression_filepath: Path to the differential expression TSV file
+        salpingoeca_map_ids: Dictionary mapping HGNC gene symbols to Salpingoeca protein IDs
+        width: Width of the figure
+        height: Height of the figure
+        output_image_filepath: Path to save the output image file
+        output_html_filepath: Path to save the output HTML file
+
+    Returns:
+        fig: Plotly figure
+    """
     expression_rows = _load_expression_rows(expression_filepath, salpingoeca_map_ids, target)
 
     significance_df = _get_significance_matrix(expression_rows)
@@ -259,6 +369,11 @@ def plot_significance_heatmap(
     apc.plotly.set_yaxis_categorical(fig)
     apc.plotly.hide_axis_lines(fig)
 
+    if output_image_filepath:
+        fig.write_image(output_image_filepath)
+    if output_html_filepath:
+        fig.write_html(output_html_filepath, config=_create_save_fig_config(width, height))
+
     return fig
 
 
@@ -266,11 +381,25 @@ def plot_expression_boxplot_and_heatmap(
     symbol: str,
     expression_filepath: pd.DataFrame,
     salpingoeca_map_ids: dict,
-    width=700,
-    height=325,
-    save_image_filepath: str = None,
-    save_html_filepath: str = None,
+    width: int = 700,
+    height: int = 325,
+    output_image_filepath: str = None,
+    output_html_filepath: str = None,
 ):
+    """Plot the expression of a given symbol in the form of a boxplot and a heatmap.
+
+    Args:
+        symbol: HGNC gene symbol to plot
+        expression_filepath: Path to the differential expression TSV file
+        salpingoeca_map_ids: Dictionary mapping HGNC gene symbols to Salpingoeca protein IDs
+        width: Width of the figure
+        height: Height of the figure
+        output_image_filepath: Path to save the output image file
+        output_html_filepath: Path to save the output HTML file
+
+    Returns:
+        fig: Plotly figure
+    """
     expression_rows = _load_expression_rows(expression_filepath, salpingoeca_map_ids, symbol)
 
     boxplot_df = _convert_expression_rows_to_boxplot_df(expression_rows)
@@ -336,9 +465,9 @@ def plot_expression_boxplot_and_heatmap(
 
     apc.plotly.hide_axis_lines(fig, row=1, col=2)
 
-    if save_image_filepath:
-        fig.write_image(save_image_filepath)
-    if save_html_filepath:
-        fig.write_html(save_html_filepath, config=_create_save_fig_config(width, height))
+    if output_image_filepath:
+        fig.write_image(output_image_filepath)
+    if output_html_filepath:
+        fig.write_html(output_html_filepath, config=_create_save_fig_config(width, height))
 
     return fig
