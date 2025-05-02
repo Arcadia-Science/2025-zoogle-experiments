@@ -96,6 +96,21 @@ data/osfstorage-archive
 data/ciona-gene-models
 data/Cirobu_RNASeq
 
+# Raw data
+data/Srosetta_DifferentialGeneExpression_TPM.txt
+data/gene_condition_source_id.tsv
+data/hgnc_complete_set.tsv
+data/organism_metadata.csv
+data/congruified_spprax_species_tree.newick
+data/id-mapping.tsv
+
+# Processed data
+data/*concatenated-os-dataset.tsv
+data/*orphanet-processed.tsv
+data/*hgnc-raw.tsv
+data/*hgnc-processed.tsv
+data/*merged-disease-datasets.tsv
+
 # Test data
 data-test/
 

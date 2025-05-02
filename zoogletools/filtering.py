@@ -27,13 +27,15 @@ def generate_minimum_rank_comparison_data(
     data_dir: str | Path,
 ):
     data_dir = Path(data_dir)
-    mouse_data = pd.read_csv(data_dir / f"per-nonref-species/{organism}.tsv", sep="\t")
-    min_mouse_ranks = mouse_data.groupby("ref_protein")["portfolio_rank"].min().reset_index()
-    min_mouse_ranks.rename(columns={"portfolio_rank": f"{organism}_min_rank"}, inplace=True)
+    organism_data = pd.read_csv(data_dir / f"per-nonref-species/{organism}.tsv", sep="\t")
+    min_organism_ranks = organism_data.groupby("ref_protein")["portfolio_rank"].min().reset_index()
+    min_organism_ranks.rename(columns={"portfolio_rank": f"{organism}_min_rank"}, inplace=True)
 
-    mouse_data = mouse_data.merge(min_mouse_ranks, on="ref_protein", how="left")
+    organism_data = organism_data.merge(min_organism_ranks, on="ref_protein", how="left")
 
-    results = mouse_data[["hgnc_gene_symbol", f"{organism}_min_rank", "orthogroup_homolog_count"]]
+    results = organism_data[
+        ["hgnc_gene_symbol", f"{organism}_min_rank", "orthogroup_homolog_count"]
+    ]
     results = results.rename(
         columns={"orthogroup_homolog_count": f"{organism}_orthogroup_homolog_count"}
     )
@@ -139,19 +141,16 @@ class PValueType(Enum):
 
 
 class PValueFilter(Filter):
-    def __init__(self, max_pvalue: float, pvalue_type: str):
+    def __init__(self, max_pvalue: float, pvalue_type: PValueType):
         super().__init__()
+        if not isinstance(pvalue_type, PValueType):
+            raise TypeError("pvalue_type must be a PValueType enum")
         self.max_pvalue = max_pvalue
-        try:
-            self.pvalue_type = PValueType(pvalue_type).value
-        except ValueError as err:
-            raise ValueError(
-                f"pvalue_type must be one of {[e.value for e in PValueType]}, got {pvalue_type}"
-            ) from err
-        self.name = self.pvalue_type
+        self.pvalue_type = pvalue_type
+        self.name = pvalue_type.value
 
     def apply(self, data: pd.DataFrame) -> pd.DataFrame:
-        filtered_data = data[data[self.pvalue_type] <= self.max_pvalue]
+        filtered_data = data[data[self.pvalue_type.value] <= self.max_pvalue]
         return filtered_data
 
 
@@ -188,20 +187,18 @@ class MonoDiseaseFilter(Filter):
         return filtered_data
 
 
-DefaultFilteringPipeline = FilteringPipeline()
-DefaultFilteringPipeline.add_filter(
-    PValueFilter(max_pvalue=0.05, pvalue_type=PValueType.COLWISE.value)
-)
-DefaultFilteringPipeline.add_filter(DiseaseAssociationFilter())
-DefaultFilteringPipeline.add_filter(HomologCountFilter(max_count=1))
-DefaultFilteringPipeline.add_filter(MonoDiseaseFilter())
+default_filtering_pipeline = FilteringPipeline()
+default_filtering_pipeline.add_filter(PValueFilter(max_pvalue=0.05, pvalue_type=PValueType.COLWISE))
+default_filtering_pipeline.add_filter(DiseaseAssociationFilter())
+default_filtering_pipeline.add_filter(HomologCountFilter(max_count=1))
+default_filtering_pipeline.add_filter(MonoDiseaseFilter())
 
 
 def filter_organism_proteins(
     target_organism: str,
     data_dirpath: str | Path,
     disease_data_filepath: str | Path,
-    filtering_pipeline: FilteringPipeline = DefaultFilteringPipeline,
+    filtering_pipeline: FilteringPipeline = default_filtering_pipeline,
 ) -> tuple[pd.DataFrame, dict]:
     filter_counts = dict()
 
@@ -246,14 +243,14 @@ def create_final_filtered_sheet(
     output_path: str,
 ) -> pd.DataFrame:
     """
-    Joins two TSV files (genes and IDs) and adds columns with URLs to external resources.
+    Creates a final filtered DataFrame with added URL columns and saves it to a TSV file.
 
     Args:
-        input_path: Path to the input TSV file
+        input_data: Input DataFrame containing gene/protein data
         output_path: Path where the output TSV will be saved
 
     Returns:
-        pd.DataFrame: The processed DataFrame with added URL columns
+        pd.DataFrame: The processed DataFrame with added URL columns and renamed columns
     """
     omim_col = "omim_id"
     orphanet_col = "orphanet"
