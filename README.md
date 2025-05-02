@@ -15,7 +15,7 @@ This repository contains the code for the 2025 Zoogle collabs. This includes cod
     - HGNC gene set.
     - Species tree from speciesRAX.
 1. Process downloaded data so that it's tidy and usable for filtering scripts.
-1. [TBI] Run filtering scripts.
+1. Run filtering scripts.
 
 ### Salpingoeca rosetta RNA-Seq analysis.
 1. [TBI] Download processed RNA-Seq data from Figshare.
@@ -37,6 +37,16 @@ This repository uses conda to manage software environments and installations. Yo
 TODO: Replace <NAME> with the name of your environment
 mamba env create -n <NAME> --file envs/dev.yml
 conda activate <NAME>
+```
+
+### `zoogletools`
+
+This repository contains a Python package called `zoogletools`. This package contains the source code for the filtering pipeline and other utilities.
+
+To install the package, run the following command from the top level of this repository.
+
+```{bash}
+pip install -e .
 ```
 
 <details><summary>Developer Notes (click to expand/collapse)</summary>
@@ -62,7 +72,7 @@ conda activate <NAME>
 
 ## Data
 
-To download data for this analysis, we have a Snakemake workflow. Replace `<n>` with the number of cores you want to use.
+To download data for this analysis, we have developed a lightweight Snakemake workflow. Replace `<n>` with the number of cores you want to use.
 
 ```{bash}
 snakemake --snakefile workflows/download_data.snakefile --use-conda --cores <n>
@@ -75,20 +85,22 @@ This will download the data from the URLs specified in the `workflows/download_c
 
 ### Description of the folder structure
 
+This repository contains the following folders:
+- `data`: Contains the data for the analysis.
+- `notebooks`: Contains notebooks that frame the analyses.
+- `workflows`: Contains the Snakemake workflow for downloading the data.
+- `zoogletools`: A pip-installable Python package containing the source code for the filtering pipeline and other utilities.
+
+
 ### Methods
 
-TODO: Include a brief, step-wise overview of analyses performed.
+1. **Pre-processing.** After downloading the data, the data is preprocessed and filtered using scripts included in the `zoogletools` package. See [this README](zoogletools/data_processing/README.md) for more details.
 
-> Example:
->
-> 1.  Download scripts using `download.ipynb`.
-> 2.  Preprocess using `./preprocessing.sh -a data/`
-> 3.  Run Snakemake pipeline `snakemake --snakefile Snakefile`
-> 4.  Generate figures using `pub/make_figures.ipynb`.
+2. **Filtering.** To run the filtering pipeline, refer to the [filtering notebook](notebooks/1_filtering.ipynb).
 
 ### Compute Specifications
 
-TODO: Describe what compute resources were used to run the analysis. For example, you could list the operating system, number of cores, RAM, and storage space.
+The analysis was performed on a MacBook Pro with an M1 Pro processor and 32GB of RAM running macOS Sequoia 15.1.
 
 ## Contributing
 
