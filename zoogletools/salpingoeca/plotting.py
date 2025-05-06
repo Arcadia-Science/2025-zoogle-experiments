@@ -42,7 +42,7 @@ def create_salpingoeca_id_mapping(
     results_filepath: str,
     diffex_filepath: str,
 ):
-    """Create a mapping between HGNC gene symbols and Salpingoeca protein IDs.
+    """Create a mapping between HGNC gene symbols and Salpingoeca UniProt IDs.
 
     Args:
         results_filepath: Path to Zoogle results TSV file containing HGNC gene symbols
@@ -51,9 +51,9 @@ def create_salpingoeca_id_mapping(
             Uniprot IDs for expressed proteins
 
     Returns:
-        dict: Mapping from HGNC gene symbols to their corresponding Salpingoeca protein IDs
+        dict: Mapping from HGNC gene symbols to their corresponding UniProt IDs for the proteins in the Leon et al TSV file.
     """
-    salpingoeca_results = pd.read_csv(
+    zoogle_results = pd.read_csv(
         results_filepath, sep="\t", usecols=["hgnc_gene_symbol", "nonref_protein"]
     )
     salpingoeca_expression = pd.read_csv(diffex_filepath, sep="\t", usecols=["Uniprot ID"])
