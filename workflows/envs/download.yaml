@@ -1,4 +1,4 @@
-name: url_downloads
+name: downloads
 channels:
   - conda-forge
   - defaults

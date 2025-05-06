@@ -17,7 +17,7 @@ from pathlib import Path
 configfile: "workflows/download_config.yaml"
 
 
-download_env = "envs/download.yml"
+download_env = "envs/download.yaml"
 
 data_dir = Path(config["data_dir"]).resolve()
 log_dir = Path(config["log_dir"]).resolve()
