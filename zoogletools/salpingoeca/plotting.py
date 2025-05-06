@@ -16,18 +16,31 @@ SALPINGOECA_CELLTYPE_COLORMAP = {
     "Thecate": apc.dragon.hex_code,
 }
 
+# This colorscale is used to map the significance values
+# within different ranges to different colors.
+# In plotly colormaps, overlapping values result in discrete color boundaries.
 SIGNIFICANCE_COLORSCALE = [
-    [0, "white"],
-    [0.01, "white"],
-    [0.01, apc.lapis],  # p < 0.001
-    [0.25, apc.lapis],
-    [0.25, apc.aegean],  # p < 0.01
-    [0.5, apc.aegean],
-    [0.5, apc.vital],  # p < 0.05
-    [0.75, apc.vital],
+    [0, "white"],  # These two entries show the background color,
+    [0.01, "white"],  # used for the diagonal of the heatmap.
+    [0.01, apc.lapis],  # p < 0.001 lower bound
+    [0.25, apc.lapis],  # p < 0.001 upper bound
+    [0.25, apc.aegean],  # p < 0.01 lower bound
+    [0.5, apc.aegean],  # p < 0.01 upper bound
+    [0.5, apc.vital],  # p < 0.05 lower bound
+    [0.75, apc.vital],  # p < 0.05 upper bound
     [0.75, apc.dove],  # Not significant
-    [1, apc.dove],
+    [1, apc.dove],  # Not significant
 ]
+# These values are used to map the significance values
+# to the colorbar.
+SIGNIFICANCE_COLOR_VALUE_MAP = {
+    "diagonal": 0,
+    "p < 0.001": 0.125,
+    "p < 0.01": 0.375,
+    "p < 0.05": 0.625,
+    "n.s.": 0.875,
+}
+
 SIGNIFICANCE_COLORBAR_PARAMS = dict(
     tickmode="array",
     ticktext=["p < 0.001", "p < 0.01", "p < 0.05", "n.s."],
@@ -51,7 +64,8 @@ def create_salpingoeca_id_mapping(
             Uniprot IDs for expressed proteins
 
     Returns:
-        dict: Mapping from HGNC gene symbols to their corresponding UniProt IDs for the proteins in the Leon et al TSV file.
+        dict: Mapping from HGNC gene symbols to their corresponding
+            UniProt IDs for the proteins in the Leon et al TSV file.
     """
     zoogle_results = pd.read_csv(
         results_filepath, sep="\t", usecols=["hgnc_gene_symbol", "nonref_protein"]
@@ -59,7 +73,7 @@ def create_salpingoeca_id_mapping(
     salpingoeca_expression = pd.read_csv(diffex_filepath, sep="\t", usecols=["Uniprot ID"])
 
     salpingoeca_map = pd.merge(
-        salpingoeca_results,
+        zoogle_results,
         salpingoeca_expression[["Uniprot ID"]].drop_duplicates(),
         left_on="nonref_protein",
         right_on="Uniprot ID",
@@ -274,15 +288,15 @@ def _get_significance_matrix(
 
 def _categorize_pvalue(p: float) -> float:
     if p == -1:
-        return 0  # Diagonal
+        return SIGNIFICANCE_COLOR_VALUE_MAP["diagonal"]
     elif p < 0.001:
-        return 0.24
+        return SIGNIFICANCE_COLOR_VALUE_MAP["p < 0.001"]
     elif p < 0.01:
-        return 0.49
+        return SIGNIFICANCE_COLOR_VALUE_MAP["p < 0.01"]
     elif p < 0.05:
-        return 0.74
+        return SIGNIFICANCE_COLOR_VALUE_MAP["p < 0.05"]
     else:
-        return 1
+        return SIGNIFICANCE_COLOR_VALUE_MAP["n.s."]
 
 
 def _create_pvalue_label(p: float) -> str:
