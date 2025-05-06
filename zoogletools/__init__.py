@@ -1,4 +1,4 @@
-from . import constants, data_processing, filtering, plotting, utils
+from . import constants, data_processing, filtering, plotting, salpingoeca, utils
 
 __all__ = [
     "constants",
@@ -6,4 +6,5 @@ __all__ = [
     "filtering",
     "plotting",
     "utils",
+    "salpingoeca",
 ]

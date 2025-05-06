@@ -37,3 +37,6 @@ url_files:
   - url: "https://raw.githubusercontent.com/Arcadia-Science/2024-organismal-selection/b1c819af771a98b2d7b627f3397bc62cef71737d/data/congruified_spprax_species_tree.newick"
     output: "congruified_spprax_species_tree.newick"
     description: "Congruified species tree from speciesRAX"
+  - url: "https://figshare.com/ndownloader/files/51726065"
+    output: "Srosetta_DifferentialGeneExpression_TPM.txt"
+    description: "Salpingoeca rosetta RNA-Seq data"
