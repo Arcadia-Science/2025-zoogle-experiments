@@ -152,9 +152,10 @@ def phylogenetic_distance_scatterplot(
     tree_filepath: str | Path,
     complexities_filepath: str | Path,
     identifiers_filepath: str | Path,
-    data_dirpath: str | Path,
-    input_id: str,
-    input_type: str,
+    input_id: str | None = None,
+    input_type: str | None = None,
+    data_dirpath: str | Path | None = None,
+    data_filepath: str | Path | None = None,
     xaxis_data: str = "species_dist",
     width: int = 750,
     height: int = 500,
@@ -166,28 +167,48 @@ def phylogenetic_distance_scatterplot(
     html_filepath: str = None,
     color_dictionary: dict = DEFAULT_SPECIES_COLORS,
 ) -> None:
-    uniprot_id = _map_identifiers(identifiers_filepath, input_id, input_type, "uniprot_id")
+    if not data_filepath and not data_dirpath:
+        raise ValueError("Either data_filepath or data_dirpath must be provided")
+    elif data_dirpath and not input_id and not input_type:
+        raise ValueError("input_id and input_type must be provided if data_dirpath is provided")
 
-    if isinstance(data_dirpath, str):
-        data_dirpath = Path(data_dirpath)
+    if input_id and input_type:
+        uniprot_id = _map_identifiers(identifiers_filepath, input_id, input_type, "uniprot_id")
 
-    filepath = data_dirpath / f"per-ref-protein/{uniprot_id}.tsv"
-    data = pd.read_csv(filepath, sep="\t")
+    if data_filepath:
+        data = pd.read_csv(data_filepath, sep="\t")
+    elif data_dirpath:
+        if isinstance(data_dirpath, str):
+            data_dirpath = Path(data_dirpath)
+        filepath = data_dirpath / f"per-ref-protein/{uniprot_id}.tsv"
+        data = pd.read_csv(filepath, sep="\t")
 
-    data = (
-        data.groupby("nonref_species")
-        .agg(
-            # Because values are already sorted by minimum trait distance,
-            # we can take the first entry.
-            trait_dist=("trait_dist", "first"),
-            nonref_protein=("nonref_protein", "first"),
-            pvalue_rowwise=("pvalue_rowwise", "first"),
-            pvalue_colwise=("pvalue_colwise", "first"),
-            gene_count=("trait_dist", "count"),
-            copy_number=("trait_dist", lambda x: "single" if len(x) == 1 else "multiple"),
+    if data_filepath:
+        data = (
+            data.groupby("nonref_species")
+            .agg(
+                # Because values are already sorted by minimum trait distance,
+                # we can take the first entry.
+                trait_dist=("trait_dist", "first"),
+                nonref_protein=("nonref_protein", "first"),
+                gene_count=("trait_dist", "count"),
+                copy_number=("trait_dist", lambda x: "single" if len(x) == 1 else "multiple"),
+            )
+            .reset_index()
         )
-        .reset_index()
-    )
+    elif data_dirpath:
+        data = (
+            data.groupby("nonref_species")
+            .agg(
+                trait_dist=("trait_dist", "first"),
+                nonref_protein=("nonref_protein", "first"),
+                pvalue_rowwise=("pvalue_rowwise", "first"),
+                pvalue_colwise=("pvalue_colwise", "first"),
+                gene_count=("trait_dist", "count"),
+                copy_number=("trait_dist", lambda x: "single" if len(x) == 1 else "multiple"),
+            )
+            .reset_index()
+        )
 
     distances = get_species_distances(tree_filepath, complexities_filepath)
 
@@ -201,11 +222,29 @@ def phylogenetic_distance_scatterplot(
     else:
         symbol = None
 
+    if data_filepath:
+        hover_data = {
+            "nonref_species": True,
+            "gene_count": True,
+            "copy_number": True,
+            "species_dist": ":.2f",
+            "trait_dist": ":.2f",
+        }
+    elif data_dirpath:
+        hover_data = {
+            "nonref_species": True,
+            "gene_count": True,
+            "copy_number": True,
+            "species_dist": ":.2f",
+            "pvalue_rowwise": ":.2f",
+            "pvalue_colwise": ":.2f",
+        }
+
     fig = px.scatter(
         data,
         x=xaxis_data,
         y="trait_dist",
-        hover_data=["nonref_species"],
+        hover_data=hover_data,
         color="nonref_species",
         color_discrete_map=color_dictionary,
         symbol=symbol,
