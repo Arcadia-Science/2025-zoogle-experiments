@@ -6,7 +6,6 @@ import pandas as pd
 
 def get_species_distances(
     tree_filepath: str | pathlib.Path,
-    complexities_filepath: str | pathlib.Path = None,
     reference_species: str = "Homo-sapiens",
 ):
     """
@@ -27,12 +26,5 @@ def get_species_distances(
     distances.rename(
         columns={"index": "nonref_species", reference_species: "species_dist"}, inplace=True
     )
-
-    if complexities_filepath:
-        complexities = pd.read_csv(complexities_filepath)
-        complexities = complexities[["genus-species", "n_cells", "n_cell_types"]]
-        complexities.rename(columns={"genus-species": "nonref_species"}, inplace=True)
-
-    distances = distances.merge(complexities, on="nonref_species", how="left")
 
     return distances

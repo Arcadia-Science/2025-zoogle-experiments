@@ -6,6 +6,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from zoogletools.plotting import create_save_fig_config
+
 apc.plotly.setup()
 
 SALPINGOECA_EXPRESSION_STAGES = ["Slow Swimmer", "Fast Swimmer", "Rosette", "Thecate"]
@@ -138,26 +140,6 @@ def _create_boxplot_traces(boxplot_df: pd.DataFrame, showlegend: bool = False) -
     return traces
 
 
-def _create_save_fig_config(width: int, height: int) -> dict:
-    """Create configuration for saving figures as SVGs.
-
-    Args:
-        width: Width of the figure
-        height: Height of the figure
-
-    Returns:
-        dict: Configuration for saving figures
-    """
-    config = {
-        "toImageButtonOptions": {
-            "format": "svg",
-            "width": width,
-            "height": height,
-        }
-    }
-    return config
-
-
 def _load_expression_rows(
     expression_filepath: str, salpingoeca_map_ids: dict, symbol: str
 ) -> pd.DataFrame:
@@ -237,7 +219,7 @@ def plot_expression_boxplot(
     if output_image_filepath:
         fig.write_image(output_image_filepath)
     if output_html_filepath:
-        fig.write_html(output_html_filepath, config=_create_save_fig_config(width, height))
+        fig.write_html(output_html_filepath, config=create_save_fig_config(width, height))
 
     return fig
 
@@ -386,7 +368,7 @@ def plot_significance_heatmap(
     if output_image_filepath:
         fig.write_image(output_image_filepath)
     if output_html_filepath:
-        fig.write_html(output_html_filepath, config=_create_save_fig_config(width, height))
+        fig.write_html(output_html_filepath, config=create_save_fig_config(width, height))
 
     return fig
 
@@ -482,6 +464,6 @@ def plot_expression_boxplot_and_heatmap(
     if output_image_filepath:
         fig.write_image(output_image_filepath)
     if output_html_filepath:
-        fig.write_html(output_html_filepath, config=_create_save_fig_config(width, height))
+        fig.write_html(output_html_filepath, config=create_save_fig_config(width, height))
 
     return fig
