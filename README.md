@@ -26,7 +26,7 @@ This repository contains the code for the 2025 Zoogle collabs. This includes cod
 1. [TBI] Generate scatter plots and other plots of Ciona gene expression.
 
 ### Utilities
-1. [TBI] Utility to generate a scatter plot of best hits from each organism for a given gene, *a la* the organism selection publication.
+1. Utility to generate a scatter plot of best hits from each organism for a given gene, *a la* the organism selection publication.
 2. [TBI] `dash` app for exploring the Ciona scRNA-Seq data.
 
 ## Installation and Setup
