@@ -19,15 +19,16 @@ This repository contains the code for the 2025 Zoogle collabs. This includes cod
 
 ### Salpingoeca rosetta RNA-Seq analysis.
 1. Download processed RNA-Seq data from Figshare.
-2. Generate bar plots and heatmaps of *Salpingoeca rosetta* gene expression.
+1. Generate bar plots and heatmaps of *Salpingoeca rosetta* gene expression.
 
 ### Ciona scRNA-Seq and RNA-Seq analysis.
-1. [TBI] Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
+1. Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
+1. Generate mapping files between Ciona gene IDs and other identifiers.
 1. [TBI] Generate scatter plots and other plots of Ciona gene expression.
 
 ### Utilities
 1. Utility to generate a scatter plot of best hits from each organism for a given gene, *a la* the organism selection publication.
-2. [TBI] `dash` app for exploring the Ciona scRNA-Seq data.
+1. [TBI] `dash` app for exploring the Ciona scRNA-Seq data.
 
 ## Installation and Setup
 

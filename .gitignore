@@ -104,6 +104,9 @@ data/organism_metadata.csv
 data/congruified_spprax_species_tree.newick
 data/id-mapping.tsv
 data/Ciona_intestinalis_scRNAseq_data_Piekarz*
+data/Ciona_gene_models
+data/SCP454
+data/Cirobu_RNASeq.tar.gz
 
 # Processed data
 data/*concatenated-os-dataset.tsv
