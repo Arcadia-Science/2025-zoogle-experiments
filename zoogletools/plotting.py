@@ -120,7 +120,7 @@ def create_funnel_plot(
 
 def _map_identifiers(
     identifiers_filepath: str | Path, input_id: str, input_type: str, output_type: str
-) -> str:
+) -> str | list[str] | None:
     """
     Map identifiers between different identifier types
 
@@ -135,17 +135,13 @@ def _map_identifiers(
     if output_type not in identifiers.columns:
         raise ValueError(f"Output type {output_type} not found in identifiers")
 
-    hits = identifiers[identifiers[input_type] == input_id][output_type].values
-    if len(hits) == 0:
+    hits = set(identifiers[identifiers[input_type] == input_id][output_type].values)
+    if not hits:
         return None
     elif len(hits) == 1:
-        return hits[0]
-    elif len(hits) > 1:
-        if len(set(hits)) == 1:
-            return hits[0]
-        else:
-            print(f"More than one hit found for input identifier: {input_id}")
-            return hits
+        return hits.pop()
+    print(f"More than one hit found for input identifier: {input_id}")
+    return list(hits)
 
 
 def _create_regression_line(data: pd.DataFrame) -> tuple[go.Scatter, float]:
@@ -181,7 +177,7 @@ def _style_scatter_figure(
     lock_lower_ylimit: bool,
     invert_yaxis: bool,
     invert_xaxis: bool,
-) -> go.Figure:
+) -> None:
     fig.update_layout(
         title=f"{gene_symbol} ({uniprot_id}) phylogenetic distance scatterplot",
         xaxis_title="Distance from humans",
@@ -248,8 +244,7 @@ def phylogenetic_distance_scatter(
     uniprot_id = _map_identifiers(identifiers_filepath, input_id, input_type, "uniprot_id")
     gene_symbol = _map_identifiers(identifiers_filepath, input_id, input_type, "symbol")
 
-    if isinstance(data_dirpath, str):
-        data_dirpath = Path(data_dirpath)
+    data_dirpath = Path(data_dirpath)
     filepath = data_dirpath / f"per-ref-protein/{uniprot_id}.tsv"
     data = pd.read_csv(filepath, sep="\t")
 
@@ -268,7 +263,7 @@ def phylogenetic_distance_scatter(
 
     distances = get_species_distances(tree_filepath)
 
-    data = data.merge(distances, on="nonref_species", how="left")
+    data = data.merge(distances, on="nonref_species", how="inner")
     data.sort_values(by="species_dist", ascending=True, inplace=True)
 
     if annotate_multiple_copies:
@@ -345,7 +340,7 @@ def phylogenetic_distance_scatter_zoogle(
     color_dictionary: dict = DEFAULT_SPECIES_COLORS,
     image_filepath: str = None,
     html_filepath: str = None,
-) -> None:
+) -> go.Figure:
     data = pd.read_csv(data_filepath, sep="\t")
     gene_symbol = data["hgnc_gene_symbol"].iloc[0]
     uniprot_id = data["ref_protein"].iloc[0]

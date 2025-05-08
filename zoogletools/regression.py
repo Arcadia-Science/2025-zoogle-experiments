@@ -32,7 +32,7 @@ def calculate_protein_regressions(
         complexities_filepath=complexities_filepath,
     )
 
-    for filepath in tqdm(sorted(os.listdir(proteins_dirpath))):
+    for filename in tqdm(sorted(os.listdir(proteins_dirpath))):
         data = pd.read_csv(pathlib.Path(proteins_dirpath) / filepath, sep="\t")
         data = data.drop_duplicates(subset=["nonref_species"], keep="first")
         data = data.merge(distances, on="nonref_species", how="left")
