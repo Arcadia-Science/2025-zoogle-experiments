@@ -33,11 +33,11 @@ def calculate_protein_regressions(
     )
 
     for filename in tqdm(sorted(os.listdir(proteins_dirpath))):
-        data = pd.read_csv(pathlib.Path(proteins_dirpath) / filepath, sep="\t")
+        data = pd.read_csv(pathlib.Path(proteins_dirpath) / filename, sep="\t")
         data = data.drop_duplicates(subset=["nonref_species"], keep="first")
         data = data.merge(distances, on="nonref_species", how="left")
 
-        protein_id = filepath.split(".")[0]
+        protein_id = filename.split(".")[0]
         protein_symbol = data["hgnc_gene_symbol"].iloc[0]
 
         num_species = len(data)
