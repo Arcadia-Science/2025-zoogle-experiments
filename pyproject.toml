@@ -6,11 +6,13 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
 dependencies = [
+    "arcadia-pycolor==0.6.1",
+    "click==8.1.8",
+    "dendropy==5.0.6",
     "pandas==2.2.0",
     "plotly==6.0.0",
-    "arcadia-pycolor==0.6.0",
-    "click==8.1.8",
-    "tqdm==4.67.1"
+    "scipy==1.15.2",
+    "tqdm==4.67.1",
 ]
 
 [build-system]
