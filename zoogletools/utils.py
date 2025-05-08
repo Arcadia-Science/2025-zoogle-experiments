@@ -63,7 +63,9 @@ def create_marrvel_url(entrez_id: str):
     return f"https://marrvel.org/human/gene/{int(entrez_id)}"
 
 
-def check_many_to_many_mappings(df: pd.DataFrame, col1: str, col2: str) -> pd.Series | None:
+def check_many_to_many_mappings(
+    df: pd.DataFrame, col1: str, col2: str, max_mappings: int = 10
+) -> pd.Series | None:
     """
     Check for many-to-many mappings between two columns in a DataFrame.
     """
@@ -79,8 +81,10 @@ def check_many_to_many_mappings(df: pd.DataFrame, col1: str, col2: str) -> pd.Se
             + f"{col1} that map to multiple values in {col2}:"
         )
 
+        print(f"Showing first {max_mappings} multi-mappings found:")
+
         # For each identifier with multiple mappings, show the actual mappings
-        for identifier in multiple_mappings.index:
+        for identifier in multiple_mappings.index[:max_mappings]:
             mappings = df[df[col1] == identifier][col2].unique()
             print(f"  {identifier} maps to {len(mappings)} values: {list(mappings)}")
 
