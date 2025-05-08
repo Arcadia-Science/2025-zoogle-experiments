@@ -81,9 +81,9 @@ snakemake --snakefile workflows/download_data.snakefile --use-conda --cores <n>
 
 This will download the data from the URLs specified in the `workflows/download_config.yaml` file and save it to the `data` directory. This can take some time (30 minutes to 1 hour) to run, depending on the number of cores you use.
 
-### Ciona scRNA-Seq data
+### Ciona proteome and scRNA-Seq data
 
-Accessing the Ciona scRNA-Seq data requires a few manual steps.
+Accessing the Ciona proteome, RNA-Seq, and scRNA-Seq data requires a few manual steps.
 
 1. Unzip the following files using your preferred method, e.g. the `unzip` command. Ensure that the files are unzipped into the same directory as the zipped files, with the same file names.
    - `data/Ciona_intestinalis_scRNAseq_data_Piekarz.zip`
