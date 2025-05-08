@@ -118,3 +118,13 @@ data-test/
 # Deprecated notebooks and analyses
 notebooks/old
 notebooks/archive
+
+# Figures
+figures/
+*.pdf
+*.html
+*.svg
+*.png
+
+# Output files
+output/
