@@ -111,8 +111,8 @@ for url_file in config["url_files"]:
                 download_env
             shell:
                 """
-                mkdir -p $(dirname {output})
-                curl -L {params.url} -o {output} 2> {log}
+                mkdir -p "$(dirname {output})"
+                curl -L "{params.url}" -o "{output}" 2> "{log}"
                 """
 
     create_url_file_rule()

@@ -19,15 +19,16 @@ This repository contains the code for the 2025 Zoogle collabs. This includes cod
 
 ### Salpingoeca rosetta RNA-Seq analysis.
 1. Download processed RNA-Seq data from Figshare.
-2. Generate bar plots and heatmaps of *Salpingoeca rosetta* gene expression.
+1. Generate bar plots and heatmaps of *Salpingoeca rosetta* gene expression.
 
 ### Ciona scRNA-Seq and RNA-Seq analysis.
-1. [TBI] Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
+1. Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
+1. Generate mapping files between Ciona gene IDs and other identifiers.
 1. [TBI] Generate scatter plots and other plots of Ciona gene expression.
 
 ### Utilities
 1. Utility to generate a scatter plot of best hits from each organism for a given gene, *a la* the organism selection publication.
-2. [TBI] `dash` app for exploring the Ciona scRNA-Seq data.
+1. [TBI] `dash` app for exploring the Ciona scRNA-Seq data.
 
 ## Installation and Setup
 
@@ -78,8 +79,35 @@ To download data for this analysis, we have developed a lightweight Snakemake wo
 snakemake --snakefile workflows/download_data.snakefile --use-conda --cores <n>
 ```
 
-This will download the data from the URLs specified in the `workflows/download_config.yaml` file and save it to the `data` directory.
+This will download the data from the URLs specified in the `workflows/download_config.yaml` file and save it to the `data` directory. This can take some time (30 minutes to 1 hour) to run, depending on the number of cores you use.
 
+### Ciona proteome and scRNA-Seq data
+
+Accessing the Ciona proteome, RNA-Seq, and scRNA-Seq data requires a few manual steps.
+
+1. Unzip the following files using your preferred method, e.g. the `unzip` command. Ensure that the files are unzipped into the same directory as the zipped files, with the same file names.
+   - `data/Ciona_intestinalis_scRNAseq_data_Piekarz.zip`
+   - `data/Cirobu_RNASeq.tar.gz`
+   - `data/Ciona_gene_models/HT.KY21Gene.protein.2.fasta.zip`
+   - `data/Ciona_gene_models/Ciona_intestinalis.faa.gz`
+
+    Example commands are shown below.
+    ```{bash}
+    unzip data/Cirobu_RNASeq.tar.gz -d data/Cirobu_RNASeq
+    unzip data/HT.KY21Gene.protein.2.fasta.zip -d data/HT.KY21Gene.protein.2.fasta
+    unzip data/Ciona_intestinalis.faa.gz -d data/Ciona_intestinalis
+    unzip data/Ciona_intestinalis_scRNAseq_data_Piekarz.zip -d data/Ciona_intestinalis_scRNAseq_data_Piekarz
+    ```
+
+2. Download the cell type annotation for the Ciona scRNA-Seq data. You need to create an account with the Broad Institute Single Cell Portal and download the data manually. The webpage for the dataset is [here](https://singlecell.broadinstitute.org/single_cell/study/SCP454/comprehensive-single-cell-transcriptome-lineages-of-a-proto-vertebrate). Navigate to the Download section and click the "Bulk download" button. A command will be generated with an authentication code, which you can run to download the data. An example command is shown below (`<auth_code>` should be replaced with the actual authentication code).
+
+    ```{bash}
+    cd data
+
+    curl -k "https://singlecell.broadinstitute.org/single_cell/api/v1/bulk_download/generate_curl_config?accessions=SCP454&auth_code=<auth_code>&directory=all&context=study"  -o cfg.txt; curl -K cfg.txt && rm cfg.txt
+    ```
+
+    This will put the data into a directory called `SCP454`, containing three directories: `cluster`, `expression`, and `metadata`. You may encounter a `curl: (2) no URL specified` error. If this happens, you can try the command again with the authentication code. The only essential file for downstream analyses is `SCP454/cluster/ciona10stage.cluster.upload.new.txt`, which contains the cell type annotation.
 
 ## Overview
 
