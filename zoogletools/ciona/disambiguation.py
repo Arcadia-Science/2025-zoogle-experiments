@@ -23,7 +23,7 @@ def load_cao_cell_barcodes(
 def load_piekarz_scrnaseq_data(
     stage: CionaStage,
     data_dir: str | Path = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz"),
-):
+) -> sc.AnnData:
     """
     Load the scRNA-seq data for a given developmental stage directly from the Piekarz dataset.
 
@@ -83,7 +83,7 @@ def load_piekarz_scrnaseq_data(
 
 
 def load_piekarz_cell_barcodes(
-    data_dir: Path = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz"),
+    data_dir: str | Path = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz"),
 ) -> pd.DataFrame:
     data_dir = Path(data_dir)
 
@@ -109,9 +109,9 @@ def _sort_by_stage_and_replicate(values):
 
 
 def plot_stage_replicate_sankey(
-    merged_cell_barcodes,
-    width=500,
-    height=800,
+    merged_cell_barcodes: pd.DataFrame,
+    width: int = 500,
+    height: int = 800,
     image_filepath: str | Path | None = None,
     html_filepath: str | Path | None = None,
 ):
