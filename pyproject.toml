@@ -12,6 +12,7 @@ dependencies = [
     "numpy==1.26.3",
     "pandas==2.2.0",
     "plotly==6.0.0",
+    "scanpy==1.9.6",
     "tqdm==4.67.1"
 ]
 
