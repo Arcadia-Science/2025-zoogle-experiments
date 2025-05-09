@@ -53,7 +53,7 @@ def _append_tech_replicate_to_barcode(row: pd.Series) -> str:
     return row["barcode"] + "-" + row["tech"].replace("tech", "")
 
 
-def load_ciona_scrnaseq_data_by_stage(stage: CionaStage, data_dir: str | Path) -> sc.AnnData:
+def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnData:
     """
     Load the scRNA-seq data for a given developmental stage.
 
