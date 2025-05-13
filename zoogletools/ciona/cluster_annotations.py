@@ -13,8 +13,8 @@ from zoogletools.ciona.constants import CIONA_STAGE_CAO_TO_PIEKARZ_MAP, CionaSta
 
 def quantify_cluster_annotations(
     cell_clusters: pd.DataFrame,
-    scrnaseq_data_dir: Path = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz"),
-    output_dir: Path = Path(
+    input_dirpath: Path = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz"),
+    output_dirpath: Path = Path(
         "../../data/Ciona_intestinalis_scRNAseq_data_Piekarz/cluster_annotations"
     ),
 ) -> None:
@@ -28,8 +28,11 @@ def quantify_cluster_annotations(
     for stage in CionaStage.ordered_stages():
         index = CionaStage.ordered_stages().index(stage) + 1
 
-        adata = zt.ciona.data_processing.load_ciona_scrnaseq_data(stage, scrnaseq_data_dir)
-        print(f"Cao Stage: {stage}, Piekarz Stage: {CIONA_STAGE_CAO_TO_PIEKARZ_MAP[stage]}")
+        adata = zt.ciona.data_processing.load_ciona_scrnaseq_data(stage, input_dirpath)
+        print(
+            f"Processing Cao Stage: {stage},",
+            f"Piekarz Stage: {CIONA_STAGE_CAO_TO_PIEKARZ_MAP[stage]}",
+        )
 
         replicates = adata.obs.rep.unique()
         replicate_cluster_annotations = pd.DataFrame()
@@ -60,7 +63,7 @@ def quantify_cluster_annotations(
             )
 
         stage_cluster_annotations = (
-            replicate_cluster_annotations.groupby("seurat_clusters")
+            replicate_cluster_annotations.groupby("seurat_clusters", observed=True)
             .agg(
                 cell_type_count=("Tissue Type", "value_counts"),
             )
@@ -68,11 +71,13 @@ def quantify_cluster_annotations(
         )
         stage_cluster_annotations["stage"] = stage
 
-        if not output_dir.exists():
-            output_dir.mkdir(parents=True)
+        if not output_dirpath.exists():
+            output_dirpath.mkdir(parents=True)
 
         stage_cluster_annotations.to_csv(
-            output_dir / f"{index}_{stage}_cluster_annotations.tsv", sep="\t", index=False
+            output_dirpath / f"{index}_{stage}_cluster_annotations.tsv",
+            sep="\t",
+            index=False,
         )
 
 
@@ -223,7 +228,9 @@ def _assign_cluster_tissue_colors(
     return color_map
 
 
-def process_cluster_annotations(annotation_filepath: str) -> tuple[pd.DataFrame, dict]:
+def process_quantified_cluster_annotations(
+    annotation_filepath: str,
+) -> tuple[pd.DataFrame, dict]:
     """Process cluster annotations from a TSV file and return formatted results.
 
     Args:
@@ -255,8 +262,13 @@ def process_cluster_annotations(annotation_filepath: str) -> tuple[pd.DataFrame,
 
         top_cluster_celltypes.append(top_types[0][0])
         top_cluster_fractions.append(top_types[0][1])
-        second_cluster_celltypes.append(top_types[1][0])
-        second_cluster_fractions.append(top_types[1][1])
+
+        if len(top_types) > 1:
+            second_cluster_celltypes.append(top_types[1][0])
+            second_cluster_fractions.append(top_types[1][1])
+        else:
+            second_cluster_celltypes.append(np.nan)
+            second_cluster_fractions.append(np.nan)
 
     top_cluster_mapping = dict(zip(clusters, top_cluster_celltypes, strict=True))
     suffixes = _number_repeated_types(top_cluster_mapping)
@@ -285,9 +297,12 @@ def process_cluster_annotations(annotation_filepath: str) -> tuple[pd.DataFrame,
 
 
 def compile_all_cluster_names(
-    annotation_dir: str | Path, output_filepath: str | Path | None = None
+    annotation_dirpath: str | Path, output_filepath: str | Path | None = None
 ) -> pd.DataFrame:
-    """Compile cluster names across all developmental stages into a single dataframe.
+    """
+    Compile cluster names across all developmental stages into a single dataframe,
+        and optionally save the output to a TSV file.
+    The output file includes the formatted cluster names and the tissue colors.
 
     Args:
         annotation_dir: Directory containing cluster annotation TSV files
@@ -296,14 +311,14 @@ def compile_all_cluster_names(
     Returns:
         DataFrame containing cluster names for all stages
     """
-    annotation_dir = Path(annotation_dir)
+    annotation_dirpath = Path(annotation_dirpath)
     all_cluster_names = []
 
     for stage in CionaStage.ordered_stages():
         index = CionaStage.ordered_stages().index(stage) + 1
 
-        cluster_annotations = process_cluster_annotations(
-            annotation_dir / f"{index}_{stage}_cluster_annotations.tsv"
+        cluster_annotations = process_quantified_cluster_annotations(
+            annotation_dirpath / f"{index}_{stage}_cluster_annotations.tsv"
         )
         all_cluster_names.append(cluster_annotations)
 
