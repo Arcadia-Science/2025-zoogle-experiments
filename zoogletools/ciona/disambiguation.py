@@ -62,14 +62,15 @@ def load_piekarz_scrnaseq_data(
     if stage == "iniG":
         adata.obs.rename(columns={"larva": "rep"}, inplace=True)
 
-    # For some reason, the replicate column is named "replicate" in the midTII stage file.
+    # For some reason, the replicate column is named "replicate"
+    # (rather than "rep") in the midTII stage file.
     if stage == "midTII":
         adata.obs.rename(columns={"replicate": "rep"}, inplace=True)
         adata.obs["rep"] = adata.obs["rep"].cat.rename_categories(
             {"midTII-1": "rep1", "midTII-2": "rep2"}
         )
 
-    # The latTI and latTII files include technical replicates,
+    # Unlike the other stages, the latTI and latTII files also include technical replicates,
     # which are labeled in an additional "tech" column.
     # To be able to merge these with the Cao cell annotations,
     # we need to append "-1" and "-2" to the barcode.
@@ -98,9 +99,21 @@ def load_piekarz_cell_barcodes(
     return piekarz_cell_barcodes
 
 
-def _sort_by_stage_and_replicate(values):
+def _sort_by_stage_and_replicate(stage_replicate_labels: list[str]) -> list[str]:
+    """
+    Sort a list of stage replicate labels by stage and replicate number,
+    where the stage replicate labels are of the form "<stage>_<replicate>".
+
+    For example, "iniG_rep1" should come before "iniG_rep2".
+
+    Parameters:
+        stage_replicate_labels (list[str]): List of stage replicate labels to sort.
+
+    Returns:
+        list[str]: Sorted list of stage replicate labels.
+    """
     return sorted(
-        values,
+        stage_replicate_labels,
         key=lambda x: (
             CionaStage.ordered_stages().index(x.split("_")[1]),  # Sort by stage.
             int(x.split("_")[2].replace("rep", "")),  # Sort by replicate number.
@@ -149,7 +162,7 @@ def plot_stage_replicate_sankey(
         ["stage_replicate_cao", "stage_replicate_piekarz"]
     )
 
-    # Calculate link values and positions
+    # Calculate link values and total number of cells
     value_counts = merged_cell_barcodes.groupby(
         ["stage_replicate_cao", "stage_replicate_piekarz"]
     ).size()
@@ -175,10 +188,11 @@ def plot_stage_replicate_sankey(
     link_colors = [hex_to_plotly_rgba(apc.stone, 0.2)] * len(value_counts)
     value_counts_idx = list(value_counts.index)
 
-    # Highlight maximum links
-    for group in [value_counts.groupby(level=0), value_counts.groupby(level=1)]:
-        for _, group_data in group:
-            max_idx = value_counts_idx.index(group_data.idxmax())
+    # Highlight the largest links from each source (to any number of targets)
+    # and the largest links to each target (from any number of sources).
+    for groups in [value_counts.groupby(level=0), value_counts.groupby(level=1)]:
+        for _, group in groups:
+            max_idx = value_counts_idx.index(group.idxmax())
             link_colors[max_idx] = hex_to_plotly_rgba(apc.chateau, 0.7)
 
     # Create Sankey diagram
