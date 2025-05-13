@@ -8,7 +8,7 @@ license = { file = "LICENSE" }
 dependencies = [
     "arcadia-pycolor==0.6.1",
     "click==8.1.8",
-    "dendropy==5.0.6",
+    "dendropy==5.0.1",
     "numpy==1.26.3",
     "pandas==2.2.0",
     "plotly==6.0.0",
