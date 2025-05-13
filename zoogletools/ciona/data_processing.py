@@ -121,11 +121,7 @@ def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnD
         adata.obs["barcode"] = adata.obs.apply(_append_tech_replicate_to_barcode, axis=1)
 
     adata.obs["merging_barcode"] = (
-        piekarz_stage_to_retrieve
-        + "_"
-        + adata.obs["rep"].astype(str)
-        + "_"
-        + adata.obs["barcode"].astype(str)
+        stage + "_" + adata.obs["rep"].astype(str) + "_" + adata.obs["barcode"].astype(str)
     )
 
     return adata

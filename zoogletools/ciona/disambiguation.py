@@ -7,7 +7,8 @@ import scanpy as sc
 
 from zoogletools.ciona.constants import STAGE_COLORS, CionaStage
 from zoogletools.ciona.data_processing import _append_tech_replicate_to_barcode, load_cell_clusters
-from zoogletools.plotting import create_save_fig_config, hex_to_plotly_rgba
+from zoogletools.ciona.utils import hex_to_plotly_rgba
+from zoogletools.plotting import create_save_fig_config
 
 
 def load_cao_cell_barcodes(
