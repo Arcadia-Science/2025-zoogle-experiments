@@ -123,7 +123,7 @@ def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnD
     # which are labeled in an additional "tech" column.
     # To be able to merge these with the Cao cell annotations,
     # we need to append "-1" and "-2" to the barcode.
-    if piekarz_stage_to_retrieve in [CionaStage.LATTI, CionaStage.LATTI]:
+    if piekarz_stage_to_retrieve in [CionaStage.LATTI, CionaStage.LATTII]:
         adata.obs["barcode"] = adata.obs.apply(_append_tech_replicate_to_barcode, axis=1)
 
     adata.obs["merging_barcode"] = (
