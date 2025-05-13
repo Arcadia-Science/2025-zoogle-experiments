@@ -75,9 +75,9 @@ Accessing the Ciona proteome, RNA-Seq, and scRNA-Seq data requires a few manual 
 
     Example commands are shown below.
     ```bash
-    unzip data/Cirobu_RNASeq.tar.gz -d data/Cirobu_RNASeq
-    unzip data/HT.KY21Gene.protein.2.fasta.zip -d data/HT.KY21Gene.protein.2.fasta
-    unzip data/Ciona_intestinalis.faa.gz -d data/Ciona_intestinalis
+    mkdir -p data/Cirobu_RNASeq && tar -xzvf data/Cirobu_RNASeq.tar.gz -C data/Cirobu_RNASeq
+    gunzip data/Ciona_gene_models/Ciona_intestinalis.faa.gz
+    unzip data/Ciona_gene_models/HT.KY21Gene.protein.2.fasta.zip -d data/Ciona_gene_models/HT.KY21Gene.protein.2.fasta
     unzip data/Ciona_intestinalis_scRNAseq_data_Piekarz.zip -d data/Ciona_intestinalis_scRNAseq_data_Piekarz
     ```
 
