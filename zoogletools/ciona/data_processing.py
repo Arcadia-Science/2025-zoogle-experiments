@@ -21,7 +21,9 @@ def load_cell_clusters(data_dir: Path = Path("../../data/SCP454")) -> pd.DataFra
         pd.DataFrame: Processed cell cluster data with additional columns
             for stage and barcode information
     """
-    cell_clusters = pd.read_csv(data_dir / "cluster/ciona10stage.cluster.upload.new.txt", sep="\t")
+    cell_clusters = pd.read_csv(
+        data_dir / "cluster" / "ciona10stage.cluster.upload.new.txt", sep="\t"
+    )
     # Drop the first row, which contains data type information.
     cell_clusters.drop(index=[0], inplace=True)
 
@@ -66,6 +68,10 @@ def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnD
     This function takes care of all of these issues, returning a clean AnnData object
     for the correct stage.
 
+    This function duplicates the similar function in the `disambiguation.py` module,
+    but includes corrections for the stage and replicate mismatches that are
+    illustrated in the `disambiguation.py` module.
+
     Parameters:
     stage (CionaStage): The developmental stage to load the data for.
     data_dir (str | Path): The directory containing the scRNA-seq data.
@@ -81,7 +87,7 @@ def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnD
     )
 
     # The midTII stage file is named differently.
-    if piekarz_stage_to_retrieve == "midTII":
+    if piekarz_stage_to_retrieve == CionaStage.MIDTII:
         filepath = (
             f"{data_dir}/{index + 1}_{piekarz_stage_to_retrieve}/final/"
             + f"{piekarz_stage_to_retrieve}_KY21.h5ad"
@@ -90,24 +96,24 @@ def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnD
     adata = sc.read_h5ad(filepath)
 
     # For some reason, the replicate column is named "larva" in the iniG stage.
-    if piekarz_stage_to_retrieve == "iniG":
+    if piekarz_stage_to_retrieve == CionaStage.INIG:
         adata.obs.rename(columns={"larva": "rep"}, inplace=True)
 
     # The earTI stage file has an incorrect replicate number.
-    if piekarz_stage_to_retrieve == "earTI":
+    if piekarz_stage_to_retrieve == CionaStage.EARTI:
         adata.obs["rep"] = adata.obs["rep"].cat.rename_categories({"rep2": "rep3"})
 
     # The latTI stage file has swapped replicate numbers.
-    if piekarz_stage_to_retrieve == "latTI":
+    if piekarz_stage_to_retrieve == CionaStage.LATTI:
         adata.obs["rep"] = adata.obs["rep"].cat.rename_categories({"rep1": "rep2", "rep2": "rep1"})
 
     # The larva stage file has incorrect replicate numbers.
     # The Piekarz analysis seems to have omitted the original "rep1" file.
-    if piekarz_stage_to_retrieve == "larva":
+    if piekarz_stage_to_retrieve == CionaStage.LARVA:
         adata.obs["rep"] = adata.obs["rep"].cat.rename_categories({"rep1": "rep3", "rep2": "rep4"})
 
     # For some reason, the replicate column is named "replicate" in the midTII stage file.
-    if piekarz_stage_to_retrieve == "midTII":
+    if piekarz_stage_to_retrieve == CionaStage.MIDTII:
         adata.obs.rename(columns={"replicate": "rep"}, inplace=True)
         adata.obs["rep"] = adata.obs["rep"].cat.rename_categories(
             {"midTII-1": "rep1", "midTII-2": "rep2"}
@@ -117,7 +123,7 @@ def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnD
     # which are labeled in an additional "tech" column.
     # To be able to merge these with the Cao cell annotations,
     # we need to append "-1" and "-2" to the barcode.
-    if piekarz_stage_to_retrieve in ["latTI", "latTII"]:
+    if piekarz_stage_to_retrieve in [CionaStage.LATTI, CionaStage.LATTI]:
         adata.obs["barcode"] = adata.obs.apply(_append_tech_replicate_to_barcode, axis=1)
 
     adata.obs["merging_barcode"] = (
