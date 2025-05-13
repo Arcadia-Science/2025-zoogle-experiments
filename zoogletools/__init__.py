@@ -1,4 +1,5 @@
 from . import (
+    ciona,
     constants,
     data_processing,
     dendropy_utils,
@@ -10,6 +11,7 @@ from . import (
 )
 
 __all__ = [
+    "ciona",
     "constants",
     "data_processing",
     "dendropy_utils",
