@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 import zoogletools as zt
-from zoogletools.ciona.constants import CIONA_STAGE_CAO_TO_PIEKARZ_MAP, CionaStage
+from zoogletools.ciona.constants import CionaStage
 
 
 def quantify_cluster_annotations(
@@ -18,7 +18,8 @@ def quantify_cluster_annotations(
         "../../data/Ciona_intestinalis_scRNAseq_data_Piekarz/cluster_annotations"
     ),
 ) -> None:
-    """Count cluster annotations from the Cao et al. data for each developmental stage in the Piekarz et al. data.
+    """Count cluster annotations from the Cao et al. data
+        for each developmental stage in the Piekarz et al. data.
 
     Args:
         cell_clusters: DataFrame containing cell cluster annotations from Cao et al. 2019.
@@ -29,10 +30,6 @@ def quantify_cluster_annotations(
         index = CionaStage.ordered_stages().index(stage) + 1
 
         adata = zt.ciona.data_processing.load_ciona_scrnaseq_data(stage, input_dirpath)
-        print(
-            f"Processing Cao Stage: {stage},",
-            f"Piekarz Stage: {CIONA_STAGE_CAO_TO_PIEKARZ_MAP[stage]}",
-        )
 
         replicates = adata.obs.rep.unique()
         replicate_cluster_annotations = pd.DataFrame()
@@ -65,7 +62,7 @@ def quantify_cluster_annotations(
         stage_cluster_annotations = (
             replicate_cluster_annotations.groupby("seurat_clusters", observed=True)
             .agg(
-                cell_type_count=("Tissue Type", "value_counts"),
+                tissue_type_count=("Tissue Type", "value_counts"),
             )
             .reset_index(drop=False)
         )
@@ -94,29 +91,25 @@ def _get_top_cell_types(
     Returns:
         List of tuples containing the top n cell types and their fractions
     """
-    top_types = annotations.nlargest(n, "cell_type_count")
-    total_cells = annotations["cell_type_count"].sum()
+    top_types = annotations.nlargest(n, "tissue_type_count")
+    total_cells = annotations["tissue_type_count"].sum()
     return [
         (tissue, np.round(count / total_cells, round_to))
         for tissue, count in zip(
-            top_types["Tissue Type"], top_types["cell_type_count"], strict=True
+            top_types["Tissue Type"], top_types["tissue_type_count"], strict=True
         )
     ]
 
 
 def _number_repeated_types(cluster_annotations: dict[str, str]) -> dict[str, int | float]:
-    """Returns a dictionary of clusters and suffixes for cell types that appear in more than one cluster.
+    """Returns a dictionary of clusters and suffixes for cell types
+        that appear in more than one cluster.
 
     This is based on the primary cell type of the cluster.
 
-    For example, if there are cell annotations of "muscle(0.5)" and "muscle(0.4)",
-        the formatted cell type is "muscle_1(0.5)" and "muscle_2(0.4)".
-    This function returns the suffixes for those clusters, e.g. "1" and "2".
+    For example, if there are two clusters with the annotation of "muscle",
+    this function returns the suffixes "1" and "2" for those two clusters.
     If the cell type appears only once, the suffix is NaN.
-
-    For cell types joined by a "+", the suffix is applied to the first cell type.
-    For example, if there was also a "muscle(0.3)+heart(0.2)",
-        the formatted cell type is "muscle_1(0.3)+heart(0.2)".
 
     Args:
         cluster_annotations: Dictionary mapping clusters to their top cell types
