@@ -18,11 +18,11 @@ def quantify_cluster_annotations(
         "../../data/Ciona_intestinalis_scRNAseq_data_Piekarz/cluster_annotations"
     ),
 ) -> None:
-    """Generate cluster annotations for each developmental stage.
+    """Count cluster annotations from the Cao et al. data for each developmental stage in the Piekarz et al. data.
 
     Args:
-        cell_clusters: DataFrame containing cell cluster annotations
-        scrnaseq_data_dir: Directory containing scRNAseq data
+        cell_clusters: DataFrame containing cell cluster annotations from Cao et al. 2019.
+        scrnaseq_data_dir: Directory containing scRNAseq data from Piekarz et al 2024.
         output_dir: Directory to save cluster annotation files
     """
     for stage in CionaStage.ordered_stages():
@@ -87,7 +87,7 @@ def _get_top_cell_types(
     """Get the top n cell types and their fractions for a cluster.
 
     Args:
-        annotations: DataFrame containing cell type annotations
+        annotations: DataFrame containing cell type annotations for a single cluster.
         n: Number of top cell types to return
         round_to: Number of decimal places to round the fractions
 
@@ -95,7 +95,7 @@ def _get_top_cell_types(
         List of tuples containing the top n cell types and their fractions
     """
     top_types = annotations.nlargest(n, "cell_type_count")
-    total_cells = top_types["cell_type_count"].sum()
+    total_cells = annotations["cell_type_count"].sum()
     return [
         (tissue, np.round(count / total_cells, round_to))
         for tissue, count in zip(
@@ -105,7 +105,7 @@ def _get_top_cell_types(
 
 
 def _number_repeated_types(cluster_annotations: dict[str, str]) -> dict[str, int | float]:
-    """Returns a dictionary of clusters and suffixes for cell types that appear multiple times.
+    """Returns a dictionary of clusters and suffixes for cell types that appear in more than one cluster.
 
     This is based on the primary cell type of the cluster.
 
@@ -132,9 +132,9 @@ def _number_repeated_types(cluster_annotations: dict[str, str]) -> dict[str, int
     # With each access, the counter is incremented by 1.
     type_counters = defaultdict(lambda: itertools.count(1))
 
-    numbered_suffixes = {}
+    numbered_suffixes = defaultdict(np.nan)
     for cluster, annotation in cluster_annotations.items():
-        # If the cell type appears more than once, add a number to it.
+        # If the cell type appears in more than one cluster, add a number to it.
         if type_counts[annotation] > 1:
             # The number added to the cell type annotation increases
             # by 1 for each additional occurrence.
@@ -254,11 +254,11 @@ def process_quantified_cluster_annotations(
     second_cluster_fractions = []
     formatted_cluster_names = []
 
-    for cluster in cluster_annotations[CAC.SEURAT_CLUSTERS].unique():
-        clusters.append(cluster)
+    clusters = cluster_annotations[CAC.SEURAT_CLUSTERS].unique()
+    for cluster in clusters:
         cluster_data = cluster_annotations[cluster_annotations[CAC.SEURAT_CLUSTERS] == cluster]
 
-        top_types = _get_top_cell_types(cluster_data)
+        top_types = _get_top_cell_types(cluster_data, n=2)
 
         top_cluster_celltypes.append(top_types[0][0])
         top_cluster_fractions.append(top_types[0][1])
@@ -296,7 +296,7 @@ def process_quantified_cluster_annotations(
     return result
 
 
-def compile_all_cluster_names(
+def process_all_quantified_cluster_annotations(
     annotation_dirpath: str | Path, output_filepath: str | Path | None = None
 ) -> pd.DataFrame:
     """
