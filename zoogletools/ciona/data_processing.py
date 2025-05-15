@@ -130,4 +130,8 @@ def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnD
         stage + "_" + adata.obs["rep"].astype(str) + "_" + adata.obs["barcode"].astype(str)
     )
 
+    # For all samples, the gene names have a trailing period, which interferes with later merging.
+    adata.var.index = adata.var.index.str.rstrip(".")
+    adata.var["name"] = adata.var.index
+
     return adata

@@ -125,7 +125,7 @@ def _number_repeated_types(cluster_annotations: dict[str, str]) -> dict[str, int
     # With each access, the counter is incremented by 1.
     type_counters = defaultdict(lambda: itertools.count(1))
 
-    numbered_suffixes = defaultdict(np.nan)
+    numbered_suffixes = defaultdict(lambda: np.nan)
     for cluster, annotation in cluster_annotations.items():
         # If the cell type appears in more than one cluster, add a number to it.
         if type_counts[annotation] > 1:
