@@ -1,5 +1,4 @@
 import os
-from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
@@ -12,21 +11,10 @@ from plotly.subplots import make_subplots
 from tqdm import tqdm
 
 from zoogletools.ciona.cluster_annotations import TISSUE_PALETTE_DICT
-from zoogletools.ciona.constants import (
-    CIONA_GENE_MODELS_DIRPATH,
-    PIEKARZ_DATA_DIRPATH,
-    ZOOGLE_RESULTS_DIRPATH,
-    CionaStage,
-)
+from zoogletools.ciona.constants import PIEKARZ_DATA_DIRPATH, CionaStage
 from zoogletools.ciona.data_processing import load_ciona_scrnaseq_data
+from zoogletools.ciona.identifier_mapping import CionaIDTypes, IdentifierMapper
 from zoogletools.plotting import create_save_fig_config
-
-
-class CionaIDTypes(StrEnum):
-    HGNC_GENE_SYMBOL = "hgnc_gene_symbol"
-    NONREF_PROTEIN = "nonref_protein"
-    KY_ID = "ky_id"
-    KH_ID = "kh_id"
 
 
 def extract_umap_coordinates(adata: sc.AnnData) -> pd.DataFrame:
@@ -38,230 +26,6 @@ def extract_umap_coordinates(adata: sc.AnnData) -> pd.DataFrame:
     umap_df = pd.concat([umap_df, adata.obs], axis=1)
 
     return umap_df
-
-
-def _handle_multiple_hits(
-    hits: pd.DataFrame,
-    input_id_type: str,
-    input_id: str,
-    output_id_type: str,
-) -> str:
-    """Handle multiple hits for a given input ID.
-
-    Args:
-        hits: The hits dataframe.
-        input_id_type: The type of the input ID.
-        input_id: The input ID.
-
-    Returns:
-        The top hit.
-    """
-    if len(hits) == 0:
-        raise ValueError(f"No hits found for {input_id_type} == {input_id}")
-    elif len(hits) > 1:
-        print(f"Multiple hits found for {input_id_type} == {input_id}")
-        print(hits[[input_id_type, output_id_type]])
-        top_hit = hits.iloc[0]
-        print(f"Returning top hit: {top_hit[output_id_type]}")
-
-    return hits[output_id_type].values[0]
-
-
-def map_hgnc_to_ciona_uniprot(
-    results_filepath: str,
-    input_id: str,
-    input_id_type: str = CionaIDTypes.HGNC_GENE_SYMBOL,
-    output_id_type: str = CionaIDTypes.NONREF_PROTEIN,
-):
-    """Create a mapping between HGNC gene symbols and Salpingoeca UniProt IDs.
-
-    Args:
-        results_filepath: Path to Zoogle results TSV file containing HGNC gene symbols
-            and Ciona protein IDs
-        input_id: HGNC gene symbol or Ciona UniProt ID
-        input_id_type: "hgnc_gene_symbol" or "nonref_protein"
-        output_id_type: "hgnc_gene_symbol" or "nonref_protein"
-
-    Returns:
-        HGNC gene symbol or Ciona UniProt ID
-    """
-    zoogle_results = pd.read_csv(results_filepath, sep="\t")
-
-    hits = zoogle_results[zoogle_results[input_id_type] == input_id]
-    hits = hits.sort_values(by=["trait_dist"], ascending=False)
-
-    return _handle_multiple_hits(
-        hits=hits, input_id_type=input_id_type, input_id=input_id, output_id_type=output_id_type
-    )
-
-
-def map_uniprot_to_ky_id(
-    input_filepath: str,
-    input_id: str,
-    input_id_type: str = CionaIDTypes.NONREF_PROTEIN,
-    output_id_type: str = CionaIDTypes.KY_ID,
-) -> dict:
-    """Create a mapping between HGNC gene symbols and Ciona UniProt IDs.
-
-    Args:
-        input_filepath: Path to input TSV file containing HGNC gene symbols
-            and Ciona protein IDs
-        input_id: Ciona UniProt ID
-        input_id_type: "nonref_protein"
-        output_id_type: "ky_id"
-
-    Returns:
-        dict: Mapping from HGNC gene symbols to their corresponding Ciona UniProt IDs
-    """
-    input_df = pd.read_csv(input_filepath, sep="\t")
-
-    hits = input_df[input_df[input_id_type] == input_id]
-
-    return _handle_multiple_hits(
-        hits=hits, input_id_type=input_id_type, input_id=input_id, output_id_type=output_id_type
-    )
-
-
-def map_ky_to_kh_id(
-    input_filepath: str,
-    input_id: str,
-    input_id_type: str = CionaIDTypes.KY_ID,
-    output_id_type: str = CionaIDTypes.KH_ID,
-) -> str:
-    """Map a Ciona KY ID to a Ciona KH ID.
-
-    Args:
-        input_filepath: Path to the input TSV file containing the KY ID to KH ID mapping.
-        input_id: The KY ID to map.
-        input_id_type: The type of the input ID.
-        output_id_type: The type of the output ID.
-
-    Returns:
-        The KH ID.
-    """
-    input_df = pd.read_csv(input_filepath, sep="\t")
-
-    hits = input_df[input_df[input_id_type] == input_id]
-
-    return _handle_multiple_hits(
-        hits=hits, input_id_type=input_id_type, input_id=input_id, output_id_type=output_id_type
-    )
-
-
-def map_input_id_to_all_ciona_ids(
-    input_id: str,
-    input_id_type: str = CionaIDTypes.HGNC_GENE_SYMBOL,
-    zoogle_results_dirpath: str | Path = ZOOGLE_RESULTS_DIRPATH,
-    ciona_gene_models_dirpath: str | Path = CIONA_GENE_MODELS_DIRPATH,
-) -> dict:
-    """Map an input ID to all Ciona IDs.
-
-    Args:
-        input_id: The input ID to map.
-        input_id_type: The type of the input ID.
-        zoogle_results_dirpath: The directory containing the Zoogle results.
-        ciona_gene_models_dirpath: The directory containing the Ciona gene models.
-
-    Returns:
-        A dictionary containing the mapped IDs.
-    """
-    zoogle_results_filepath = (
-        zoogle_results_dirpath / "per-nonref-species" / "Ciona-intestinalis.tsv"
-    )
-
-    ciona_uniprot_ky_map_filepath = ciona_gene_models_dirpath / "ciona_uniprot_ky_map.tsv"
-
-    ciona_ky_kh_map_filepath = ciona_gene_models_dirpath / "ciona_ky_kh_map.tsv"
-
-    if input_id_type == CionaIDTypes.HGNC_GENE_SYMBOL:
-        hgnc_gene_symbol = input_id
-        uniprot_id = map_hgnc_to_ciona_uniprot(
-            results_filepath=zoogle_results_filepath,
-            input_id=input_id,
-            input_id_type=CionaIDTypes.HGNC_GENE_SYMBOL,
-            output_id_type=CionaIDTypes.NONREF_PROTEIN,
-        )
-        ky_id = map_uniprot_to_ky_id(
-            input_filepath=ciona_uniprot_ky_map_filepath,
-            input_id=uniprot_id,
-            input_id_type=CionaIDTypes.NONREF_PROTEIN,
-            output_id_type=CionaIDTypes.KY_ID,
-        )
-        kh_id = map_ky_to_kh_id(
-            input_filepath=ciona_ky_kh_map_filepath,
-            input_id=ky_id,
-            input_id_type=CionaIDTypes.KY_ID,
-            output_id_type=CionaIDTypes.KH_ID,
-        )
-    elif input_id_type == CionaIDTypes.NONREF_PROTEIN:
-        uniprot_id = input_id
-        hgnc_gene_symbol = map_hgnc_to_ciona_uniprot(
-            results_filepath=zoogle_results_filepath,
-            input_id=uniprot_id,
-            input_id_type=CionaIDTypes.NONREF_PROTEIN,
-            output_id_type=CionaIDTypes.HGNC_GENE_SYMBOL,
-        )
-        ky_id = map_uniprot_to_ky_id(
-            input_filepath=ciona_uniprot_ky_map_filepath,
-            input_id=uniprot_id,
-            input_id_type=CionaIDTypes.NONREF_PROTEIN,
-            output_id_type=CionaIDTypes.KY_ID,
-        )
-        kh_id = map_ky_to_kh_id(
-            input_filepath=ciona_ky_kh_map_filepath,
-            input_id=ky_id,
-            input_id_type=CionaIDTypes.KY_ID,
-            output_id_type=CionaIDTypes.KH_ID,
-        )
-    elif input_id_type == CionaIDTypes.KY_ID:
-        ky_id = input_id
-        uniprot_id = map_uniprot_to_ky_id(
-            input_filepath=ciona_uniprot_ky_map_filepath,
-            input_id=ky_id,
-            input_id_type=CionaIDTypes.KY_ID,
-            output_id_type=CionaIDTypes.NONREF_PROTEIN,
-        )
-        hgnc_gene_symbol = map_hgnc_to_ciona_uniprot(
-            results_filepath=zoogle_results_filepath,
-            input_id=uniprot_id,
-            input_id_type=CionaIDTypes.NONREF_PROTEIN,
-            output_id_type=CionaIDTypes.HGNC_GENE_SYMBOL,
-        )
-        kh_id = map_ky_to_kh_id(
-            input_filepath=ciona_ky_kh_map_filepath,
-            input_id=ky_id,
-            input_id_type=CionaIDTypes.KY_ID,
-            output_id_type=CionaIDTypes.KH_ID,
-        )
-    elif input_id_type == CionaIDTypes.KH_ID:
-        kh_id = input_id
-        ky_id = map_ky_to_kh_id(
-            input_filepath=ciona_ky_kh_map_filepath,
-            input_id=kh_id,
-            input_id_type=CionaIDTypes.KH_ID,
-            output_id_type=CionaIDTypes.KY_ID,
-        )
-        uniprot_id = map_uniprot_to_ky_id(
-            input_filepath=ciona_uniprot_ky_map_filepath,
-            input_id=ky_id,
-            input_id_type=CionaIDTypes.KY_ID,
-            output_id_type=CionaIDTypes.NONREF_PROTEIN,
-        )
-        hgnc_gene_symbol = map_hgnc_to_ciona_uniprot(
-            results_filepath=zoogle_results_filepath,
-            input_id=uniprot_id,
-            input_id_type=CionaIDTypes.NONREF_PROTEIN,
-            output_id_type=CionaIDTypes.HGNC_GENE_SYMBOL,
-        )
-    else:
-        raise ValueError(f"Invalid input_id_type: {input_id_type}")
-
-    return {
-        CionaIDTypes.HGNC_GENE_SYMBOL: hgnc_gene_symbol,
-        CionaIDTypes.NONREF_PROTEIN: uniprot_id,
-        CionaIDTypes.KY_ID: ky_id,
-        CionaIDTypes.KH_ID: kh_id,
-    }
 
 
 def _merge_cluster_annotations(
@@ -290,7 +54,7 @@ def _merge_cluster_annotations(
     return umap_df.merge(cluster_annotations, on="seurat_clusters", how="left")
 
 
-def add_cell_count_barchart(
+def append_cell_count_barchart(
     fig: go.Figure,
     ky_id: str,
     umap_df: pd.DataFrame,
@@ -433,10 +197,9 @@ def _add_yaxis_title(
 def plot_expression_violin(
     stage: CionaStage,
     input_id: str,
+    mapper: IdentifierMapper,
     input_id_type: str = CionaIDTypes.HGNC_GENE_SYMBOL,
     data_dirpath: str | Path = PIEKARZ_DATA_DIRPATH,
-    zoogle_results_dirpath: str | Path = ZOOGLE_RESULTS_DIRPATH,
-    ciona_gene_models_dirpath: str | Path = CIONA_GENE_MODELS_DIRPATH,
     cluster_annotations_filepath: str | Path | None = None,
     color_mode: Literal["tissue", "cluster"] = "tissue",
     width: int = 950,
@@ -454,12 +217,8 @@ def plot_expression_violin(
     adata = load_ciona_scrnaseq_data(stage, data_dir=data_dirpath)
     umap_df = extract_umap_coordinates(adata)
 
-    all_ciona_ids = map_input_id_to_all_ciona_ids(
-        input_id=input_id,
-        input_id_type=input_id_type,
-        zoogle_results_dirpath=zoogle_results_dirpath,
-        ciona_gene_models_dirpath=ciona_gene_models_dirpath,
-    )
+    # Get all IDs using the provided mapper
+    all_ciona_ids = mapper.map_to_all(input_id, input_id_type)
 
     uniprot_id = all_ciona_ids[CionaIDTypes.NONREF_PROTEIN]
     ky_id = all_ciona_ids[CionaIDTypes.KY_ID]
@@ -499,7 +258,7 @@ def plot_expression_violin(
         vertical_spacing=0.05,
     )
 
-    add_cell_count_barchart(
+    append_cell_count_barchart(
         fig=fig,
         ky_id=ky_id,
         umap_df=umap_df,
@@ -589,20 +348,14 @@ def plot_expression_violin(
 
 def plot_expression_violin_for_all_stages(
     input_id: str,
+    mapper: IdentifierMapper,
     input_id_type: str = CionaIDTypes.HGNC_GENE_SYMBOL,
     data_dirpath: str | Path = PIEKARZ_DATA_DIRPATH,
-    zoogle_results_dirpath: str | Path = ZOOGLE_RESULTS_DIRPATH,
-    ciona_gene_models_dirpath: str | Path = CIONA_GENE_MODELS_DIRPATH,
     color_mode: Literal["tissue", "cluster"] = "tissue",
     output_dirpath: str | Path = None,
 ) -> go.Figure:
-    all_ciona_ids = map_input_id_to_all_ciona_ids(
-        input_id=input_id,
-        input_id_type=input_id_type,
-        zoogle_results_dirpath=zoogle_results_dirpath,
-        ciona_gene_models_dirpath=ciona_gene_models_dirpath,
-    )
-
+    # Get all IDs using the provided mapper
+    all_ciona_ids = mapper.map_to_all(input_id, input_id_type)
     uniprot_id = all_ciona_ids[CionaIDTypes.NONREF_PROTEIN]
 
     output_dirpath = Path(output_dirpath)
@@ -614,10 +367,9 @@ def plot_expression_violin_for_all_stages(
         plot_expression_violin(
             stage=stage,
             input_id=input_id,
+            mapper=mapper,
             input_id_type=input_id_type,
             data_dirpath=data_dirpath,
-            zoogle_results_dirpath=zoogle_results_dirpath,
-            ciona_gene_models_dirpath=ciona_gene_models_dirpath,
             color_mode=color_mode,
             image_filepath=output_dirpath
             / f"{input_id}_{uniprot_id}_expression/"
