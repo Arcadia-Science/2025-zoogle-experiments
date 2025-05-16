@@ -1,6 +1,13 @@
 from enum import StrEnum
+from pathlib import Path
 
 import arcadia_pycolor as apc
+
+# Paths to the data used in the Ciona intestinalis scRNAseq analysis.
+# These are the default locations for the data if users follow the instructions in the README.
+PIEKARZ_DATA_DIRPATH = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz")
+ZOOGLE_RESULTS_DIRPATH = Path("../../data/2025-04-21-os-portal-reprocessed")
+CIONA_GENE_MODELS_DIRPATH = Path("../../data/Ciona_gene_models")
 
 
 # The correct order of developmental stages is as follows:

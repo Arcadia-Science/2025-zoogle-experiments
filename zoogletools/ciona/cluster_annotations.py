@@ -142,12 +142,12 @@ def _number_repeated_types(cluster_annotations: dict[str, str]) -> dict[str, int
 class ClusterAnnotationsColumns(StrEnum):
     INDEX_STAGE = "index_stage"
     SEURAT_CLUSTERS = "seurat_clusters"
-    TOP_CLUSTER_CELLTYPE = "top_cluster_celltype"
+    TOP_CLUSTER_TISSUE_TYPE = "top_cluster_tissue_type"
     TOP_CLUSTER_FRACTION = "top_cluster_fraction"
-    SECOND_CLUSTER_CELLTYPE = "second_cluster_celltype"
+    SECOND_CLUSTER_TISSUE_TYPE = "second_cluster_tissue_type"
     SECOND_CLUSTER_FRACTION = "second_cluster_fraction"
     TOP_CLUSTER_SUFFIX = "top_cluster_suffix"
-    FORMATTED_CLUSTER_NAME = "formatted_cluster_name"
+    FORMATTED_CLUSTER_ANNOTATION = "formatted_cluster_annotation"
     CLUSTER_TISSUE_COLOR = "cluster_tissue_color"
 
 
@@ -162,14 +162,16 @@ def _format_cell_type_row(row: pd.Series) -> str:
     CAC = ClusterAnnotationsColumns
 
     # Format the top cluster (with a suffix if it appears multiple times).
-    top_cluster = row[CAC.TOP_CLUSTER_CELLTYPE]
+    top_cluster = row[CAC.TOP_CLUSTER_TISSUE_TYPE]
     if pd.notna(row[CAC.TOP_CLUSTER_SUFFIX]):
         top_cluster = f"{top_cluster}_{row[CAC.TOP_CLUSTER_SUFFIX]}"
     top_cluster = f"{top_cluster}({row[CAC.TOP_CLUSTER_FRACTION]})"
 
     # If second cluster is at least half as abundant, include it.
     if row[CAC.TOP_CLUSTER_FRACTION] <= 2 * row[CAC.SECOND_CLUSTER_FRACTION]:
-        second_cluster = f"{row[CAC.SECOND_CLUSTER_CELLTYPE]}({row[CAC.SECOND_CLUSTER_FRACTION]})"
+        second_cluster = (
+            f"{row[CAC.SECOND_CLUSTER_TISSUE_TYPE]}({row[CAC.SECOND_CLUSTER_FRACTION]})"
+        )
         return f"{top_cluster}+{second_cluster}"
 
     return top_cluster
@@ -186,8 +188,8 @@ TISSUE_PALETTE_DICT = {
     "mesenchyme": smooth_gradient_from_palette(apc.palettes.red_shades),
     "muscle-heart": smooth_gradient_from_palette(apc.palettes.pink_shades),
     "endoderm": smooth_gradient_from_palette(apc.palettes.yellow_shades),
-    "unannotated": smooth_gradient_from_palette(apc.palettes.cool_gray_shades),
     "germ": smooth_gradient_from_palette(apc.palettes.green_shades),
+    "unannotated": smooth_gradient_from_palette(apc.palettes.cool_gray_shades),
 }
 
 
@@ -270,9 +272,9 @@ def process_quantified_cluster_annotations(
         {
             CAC.INDEX_STAGE: f"{index}_{stage}",
             CAC.SEURAT_CLUSTERS: clusters,
-            CAC.TOP_CLUSTER_CELLTYPE: top_cluster_celltypes,
+            CAC.TOP_CLUSTER_TISSUE_TYPE: top_cluster_celltypes,
             CAC.TOP_CLUSTER_FRACTION: top_cluster_fractions,
-            CAC.SECOND_CLUSTER_CELLTYPE: second_cluster_celltypes,
+            CAC.SECOND_CLUSTER_TISSUE_TYPE: second_cluster_celltypes,
             CAC.SECOND_CLUSTER_FRACTION: second_cluster_fractions,
             CAC.TOP_CLUSTER_SUFFIX: [
                 zt.utils.cast_numeric_id_as_string(value) for value in suffixes.values()
@@ -284,7 +286,7 @@ def process_quantified_cluster_annotations(
     result.insert(2, CAC.CLUSTER_TISSUE_COLOR, cluster_colors)
 
     formatted_cluster_names = result.apply(_format_cell_type_row, axis=1)
-    result.insert(2, CAC.FORMATTED_CLUSTER_NAME, formatted_cluster_names)
+    result.insert(2, CAC.FORMATTED_CLUSTER_ANNOTATION, formatted_cluster_names)
 
     return result
 
