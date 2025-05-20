@@ -1,3 +1,4 @@
+from collections import defaultdict
 from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple
@@ -127,16 +128,19 @@ class IdentifierMapper:
             zoogle_results_dirpath: Path to the Zoogle results directory
             ciona_gene_models_dirpath: Path to the Ciona gene models directory
         """
+        # Load Zoogle results.
         self.zoogle_results = pd.read_csv(
             zoogle_results_dirpath / "per-nonref-species" / "Ciona-intestinalis.tsv", sep="\t"
         )
-        # Sort by trait_dist for consistent first-hit mapping
+        # Sort by trait_dist for consistent first-hit mapping.
         self.zoogle_results = self.zoogle_results.sort_values(by=["trait_dist"], ascending=False)
 
+        # Load Uniprot to KY mapping. This mapping is 1:1.
         self.uniprot_ky_map = pd.read_csv(
             ciona_gene_models_dirpath / "ciona_uniprot_ky_map.tsv", sep="\t"
         )
 
+        # Load KY to KH mapping. This mapping is 1:1.
         self.ky_kh_map = pd.read_csv(ciona_gene_models_dirpath / "ciona_ky_kh_map.tsv", sep="\t")
 
         self._build_mapping_dictionaries()
@@ -144,24 +148,19 @@ class IdentifierMapper:
     def _build_mapping_dictionaries(self):
         """Build bidirectional mapping dictionaries for faster lookups."""
         # Store all hits for each mapping
-        self.hgnc_to_uniprot_hits = {}
-        self.uniprot_to_hgnc_hits = {}
-        self.uniprot_to_ky_hits = {}
-        self.ky_to_uniprot_hits = {}
-        self.ky_to_kh_hits = {}
-        self.kh_to_ky_hits = {}
+        self.hgnc_to_uniprot_hits = defaultdict(lambda: [])
+        self.uniprot_to_hgnc_hits = defaultdict(lambda: [])
+        self.uniprot_to_ky_hits = defaultdict(lambda: [])
+        self.ky_to_uniprot_hits = defaultdict(lambda: [])
+        self.ky_to_kh_hits = defaultdict(lambda: [])
+        self.kh_to_ky_hits = defaultdict(lambda: [])
 
         # Build HGNC to UniProt and vice versa mappings
         for _, row in self.zoogle_results.iterrows():
             hgnc = row[CionaIDTypes.HGNC_GENE_SYMBOL]
             uniprot = row[CionaIDTypes.NONREF_PROTEIN]
 
-            if hgnc not in self.hgnc_to_uniprot_hits:
-                self.hgnc_to_uniprot_hits[hgnc] = []
             self.hgnc_to_uniprot_hits[hgnc].append(row)
-
-            if uniprot not in self.uniprot_to_hgnc_hits:
-                self.uniprot_to_hgnc_hits[uniprot] = []
             self.uniprot_to_hgnc_hits[uniprot].append(row)
 
         # Build UniProt to KY and vice versa mappings
@@ -169,12 +168,7 @@ class IdentifierMapper:
             uniprot = row[CionaIDTypes.NONREF_PROTEIN]
             ky = row[CionaIDTypes.KY_ID]
 
-            if uniprot not in self.uniprot_to_ky_hits:
-                self.uniprot_to_ky_hits[uniprot] = []
             self.uniprot_to_ky_hits[uniprot].append(row)
-
-            if ky not in self.ky_to_uniprot_hits:
-                self.ky_to_uniprot_hits[ky] = []
             self.ky_to_uniprot_hits[ky].append(row)
 
         # Build KY to KH and vice versa mappings
@@ -182,12 +176,7 @@ class IdentifierMapper:
             ky = row[CionaIDTypes.KY_ID]
             kh = row[CionaIDTypes.KH_ID]
 
-            if ky not in self.ky_to_kh_hits:
-                self.ky_to_kh_hits[ky] = []
             self.ky_to_kh_hits[ky].append(row)
-
-            if kh not in self.kh_to_ky_hits:
-                self.kh_to_ky_hits[kh] = []
             self.kh_to_ky_hits[kh].append(row)
 
     def _handle_multiple_hits(
