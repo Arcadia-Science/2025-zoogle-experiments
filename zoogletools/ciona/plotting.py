@@ -56,15 +56,14 @@ def _merge_cluster_annotations(
 
 def append_cell_count_barchart(
     fig: go.Figure,
-    ky_id: str,
     umap_df: pd.DataFrame,
     cluster_color_map: dict,
     row: int,
     col: int,
 ) -> go.Figure:
     cluster_stats = umap_df.groupby("seurat_clusters", observed=True).agg(
-        total_cells=(ky_id, "count"),
-        expressing_cells=(ky_id, lambda x: (x > 0).sum()),
+        total_cells=("gene_expression", "count"),
+        expressing_cells=("gene_expression", lambda x: (x > 0).sum()),
     )
 
     clusters = umap_df["seurat_clusters"].unique()
@@ -85,15 +84,14 @@ def append_cell_count_barchart(
 
 def append_expression_proportion_barchart(
     fig: go.Figure,
-    ky_id: str,
     umap_df: pd.DataFrame,
     cluster_color_map: dict,
     row: int,
     col: int,
 ) -> go.Figure:
     cluster_stats = umap_df.groupby("seurat_clusters", observed=True).agg(
-        total_cells=(ky_id, "count"),
-        expressing_cells=(ky_id, lambda x: (x > 0).sum()),
+        total_cells=("gene_expression", "count"),
+        expressing_cells=("gene_expression", lambda x: (x > 0).sum()),
     )
     cluster_stats["non_expressing_cells"] = (
         cluster_stats["total_cells"] - cluster_stats["expressing_cells"]
@@ -139,13 +137,12 @@ def append_expression_proportion_barchart(
 
 def append_expression_violin(
     fig: go.Figure,
-    ky_id: str,
     umap_df: pd.DataFrame,
     cluster_color_map: dict,
     row: int,
     col: int,
 ) -> go.Figure:
-    umap_df_nonzero = umap_df[umap_df[ky_id] > 0]
+    umap_df_nonzero = umap_df[umap_df["gene_expression"] > 0]
 
     clusters = umap_df["seurat_clusters"].unique()
     for cluster in clusters:
@@ -159,7 +156,7 @@ def append_expression_violin(
             fig.add_trace(
                 go.Violin(
                     x=cluster_data["cluster_label"],
-                    y=cluster_data[ky_id],
+                    y=cluster_data["gene_expression"],
                     name=cluster,
                     box_visible=True,
                     points="all",
@@ -226,7 +223,7 @@ def plot_expression_violin(
 
     gene_index = np.where(adata.var.index == ky_id)[0][0]
     gene_expression = adata.X[:, gene_index].toarray().flatten()
-    umap_df[ky_id] = gene_expression
+    umap_df["gene_expression"] = gene_expression
 
     umap_df = _merge_cluster_annotations(
         umap_df=umap_df, stage=stage, cluster_annotations_filepath=cluster_annotations_filepath
@@ -260,7 +257,6 @@ def plot_expression_violin(
 
     append_cell_count_barchart(
         fig=fig,
-        ky_id=ky_id,
         umap_df=umap_df,
         cluster_color_map=cluster_color_map,
         row=1,
@@ -269,7 +265,6 @@ def plot_expression_violin(
 
     append_expression_proportion_barchart(
         fig=fig,
-        ky_id=ky_id,
         umap_df=umap_df,
         cluster_color_map=cluster_color_map,
         row=2,
@@ -278,7 +273,6 @@ def plot_expression_violin(
 
     append_expression_violin(
         fig=fig,
-        ky_id=ky_id,
         umap_df=umap_df,
         cluster_color_map=cluster_color_map,
         row=3,
