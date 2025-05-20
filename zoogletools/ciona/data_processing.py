@@ -4,13 +4,15 @@ import pandas as pd
 import scanpy as sc
 
 from zoogletools.ciona.constants import (
+    CAO_DATA_DIRPATH,
     CAO_STAGE_NAME_TO_PIEKARZ_STAGE_NAME_MAP,
     CIONA_STAGE_CAO_TO_PIEKARZ_MAP,
+    PIEKARZ_DATA_DIRPATH,
     CionaStage,
 )
 
 
-def load_cell_clusters(data_dir: Path = Path("../../data/SCP454")) -> pd.DataFrame:
+def load_cell_clusters(data_dir: str | Path = CAO_DATA_DIRPATH) -> pd.DataFrame:
     """
     Load and process the cell cluster data from the Cao et al. dataset.
 
@@ -21,6 +23,8 @@ def load_cell_clusters(data_dir: Path = Path("../../data/SCP454")) -> pd.DataFra
         pd.DataFrame: Processed cell cluster data with additional columns
             for stage and barcode information
     """
+    data_dir = Path(data_dir)
+
     cell_clusters = pd.read_csv(
         data_dir / "cluster" / "ciona10stage.cluster.upload.new.txt", sep="\t"
     )
@@ -55,7 +59,9 @@ def _append_tech_replicate_to_barcode(row: pd.Series) -> str:
     return row["barcode"] + "-" + row["tech"].replace("tech", "")
 
 
-def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnData:
+def load_ciona_scrnaseq_data(
+    stage: CionaStage, data_dir: str | Path = PIEKARZ_DATA_DIRPATH
+) -> sc.AnnData:
     """
     Load the scRNA-seq data for a given developmental stage.
 
@@ -79,18 +85,22 @@ def load_ciona_scrnaseq_data(stage: CionaStage, data_dir: str | Path) -> sc.AnnD
     Returns:
     adata (AnnData): The scRNA-seq data for the given developmental stage.
     """
+    data_dir = Path(data_dir)
+
     piekarz_stage_to_retrieve = CIONA_STAGE_CAO_TO_PIEKARZ_MAP[stage.value]
     index = CionaStage.ordered_stages().index(piekarz_stage_to_retrieve)
     filepath = (
-        f"{data_dir}/{index + 1}_{piekarz_stage_to_retrieve}/final/"
-        + f"{piekarz_stage_to_retrieve}.h5ad"
+        data_dir
+        / f"{index + 1}_{piekarz_stage_to_retrieve}/final/"
+        / f"{piekarz_stage_to_retrieve}.h5ad"
     )
 
     # The midTII stage file is named differently.
     if piekarz_stage_to_retrieve == CionaStage.MIDTII:
         filepath = (
-            f"{data_dir}/{index + 1}_{piekarz_stage_to_retrieve}/final/"
-            + f"{piekarz_stage_to_retrieve}_KY21.h5ad"
+            data_dir
+            / f"{index + 1}_{piekarz_stage_to_retrieve}/final/"
+            / f"{piekarz_stage_to_retrieve}_KY21.h5ad"
         )
 
     adata = sc.read_h5ad(filepath)

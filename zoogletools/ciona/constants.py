@@ -8,6 +8,7 @@ import arcadia_pycolor as apc
 PIEKARZ_DATA_DIRPATH = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz")
 ZOOGLE_RESULTS_DIRPATH = Path("../../data/2025-04-21-os-portal-reprocessed")
 CIONA_GENE_MODELS_DIRPATH = Path("../../data/Ciona_gene_models")
+CAO_DATA_DIRPATH = Path("../../data/SCP454")
 
 
 # The correct order of developmental stages is as follows:
@@ -90,7 +91,7 @@ def smooth_gradient_from_palette(palette: apc.Palette):
     return apc.Gradient(palette.name, palette.colors).interpolate_lightness()
 
 
-PALETTE_DICT = {
+TISSUE_TYPE_GRADIENTS = {
     "epidermis": smooth_gradient_from_palette(apc.palettes.blue_shades),
     "nervous_system": smooth_gradient_from_palette(apc.palettes.purple_shades),
     "notochord": smooth_gradient_from_palette(apc.palettes.warm_gray_shades),
@@ -99,4 +100,15 @@ PALETTE_DICT = {
     "endoderm": smooth_gradient_from_palette(apc.palettes.yellow_shades),
     "unannotated": smooth_gradient_from_palette(apc.palettes.cool_gray_shades),
     "germ": smooth_gradient_from_palette(apc.palettes.green_shades),
+}
+
+TISSUE_TYPE_PALETTE = {
+    "epidermis": apc.aegean,
+    "nervous-system": apc.tanzanite,
+    "notochord": apc.bark,
+    "mesenchyme": apc.dragon,
+    "muscle-heart": apc.rose,
+    "endoderm": apc.canary,
+    "germ": apc.lime,
+    "unannotated": apc.ice,
 }
