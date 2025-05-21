@@ -10,11 +10,22 @@ import scanpy as sc
 from plotly.subplots import make_subplots
 from tqdm import tqdm
 
-from zoogletools.ciona.cluster_annotations import TISSUE_PALETTE_DICT
-from zoogletools.ciona.constants import PIEKARZ_DATA_DIRPATH, CionaStage
-from zoogletools.ciona.data_processing import load_ciona_scrnaseq_data
+from zoogletools.ciona.constants import (
+    CAO_DATA_DIRPATH,
+    PIEKARZ_DATA_DIRPATH,
+    TISSUE_TYPE_GRADIENTS,
+    TISSUE_TYPE_PALETTE,
+    CionaStage,
+)
+from zoogletools.ciona.data_processing import load_cell_clusters, load_ciona_scrnaseq_data
 from zoogletools.ciona.identifier_mapping import CionaIDTypes, IdentifierMapper
-from zoogletools.plotting import create_save_fig_config
+from zoogletools.constants import (
+    GRAY_GRADIENT,
+    PLOTLY_TITLE_FONT,
+)
+from zoogletools.plotting import (
+    create_save_fig_config,
+)
 
 
 def extract_umap_coordinates(adata: sc.AnnData) -> pd.DataFrame:
@@ -47,11 +58,42 @@ def _merge_cluster_annotations(
     cluster_annotations = cluster_annotations[cluster_annotations["index_stage"] == index_stage]
     cluster_annotations["top_cluster_tissue_type"] = pd.Categorical(
         cluster_annotations["top_cluster_tissue_type"],
-        categories=TISSUE_PALETTE_DICT.keys(),
+        categories=TISSUE_TYPE_GRADIENTS.keys(),
         ordered=True,
     )
 
     return umap_df.merge(cluster_annotations, on="seurat_clusters", how="left")
+
+
+def _merge_tissue_types(
+    umap_df: pd.DataFrame, stage: CionaStage, data_dirpath: str | Path = CAO_DATA_DIRPATH
+) -> pd.DataFrame:
+    cell_clusters = load_cell_clusters(data_dirpath)
+
+    cell_clusters = cell_clusters[cell_clusters["stage"] == stage]
+    tissue_types = cell_clusters[["merging_barcode", "Tissue Type"]]
+
+    umap_df = umap_df.merge(tissue_types, on="merging_barcode", how="left")
+    umap_df.replace(
+        {
+            "Tissue Type": {
+                np.nan: "unannotated",
+                "muscle & heart": "muscle-heart",
+                "nervous system": "nervous-system",
+            }
+        },
+        inplace=True,
+    )
+
+    return umap_df
+
+
+def _add_gene_expression(umap_df: pd.DataFrame, adata: sc.AnnData, ky_id: str) -> pd.DataFrame:
+    gene_index = np.where(adata.var.index == ky_id)[0][0]
+    gene_expression = adata.X[:, gene_index].toarray().flatten()
+    umap_df["gene_expression"] = gene_expression
+
+    return umap_df
 
 
 def append_cell_count_barchart(
@@ -221,9 +263,7 @@ def plot_expression_violin(
     ky_id = all_ciona_ids[CionaIDTypes.KY_ID]
     hgnc_gene_symbol = all_ciona_ids[CionaIDTypes.HGNC_GENE_SYMBOL]
 
-    gene_index = np.where(adata.var.index == ky_id)[0][0]
-    gene_expression = adata.X[:, gene_index].toarray().flatten()
-    umap_df["gene_expression"] = gene_expression
+    umap_df = _add_gene_expression(umap_df, adata, ky_id)
 
     umap_df = _merge_cluster_annotations(
         umap_df=umap_df, stage=stage, cluster_annotations_filepath=cluster_annotations_filepath
@@ -373,4 +413,462 @@ def plot_expression_violin_for_all_stages(
             / f"{input_id}_{uniprot_id}_expression/"
             / "violin"
             / f"{index_stage}_{input_id}_{color_mode}_violin.html",
+        )
+
+
+SCATTER_HOVERTEMPLATE = (
+    "<b>Barcode</b>: %{customdata[0]}<br>"
+    + "<b>Replicate</b>: %{customdata[1]}<br>"
+    + "<b>Seurat cluster</b>: %{customdata[2]}<br>"
+    + "<b>Annotation</b>: %{customdata[3]}<br>"
+    + "<b>Expression</b>: %{customdata[4]}<br>"
+    + "<b>Tissue type</b>: %{customdata[5]}"
+)
+
+SCATTER_CUSTOMDATA = [
+    "barcode",
+    "rep",
+    "seurat_clusters",
+    "formatted_cluster_annotation",
+    "gene_expression",
+    "Tissue Type",
+]
+
+
+def _map_position_to_row_col(position: str) -> tuple[int, int]:
+    if position == "top-left":
+        return 1, 1
+    elif position == "top-right":
+        return 1, 2
+    elif position == "bottom-left":
+        return 2, 1
+    elif position == "bottom-right":
+        return 2, 2
+    else:
+        raise ValueError(f"Invalid position: {position}")
+
+
+def _map_position_to_domain(position: str) -> str:
+    if position == "top-left":
+        return ""
+    elif position == "top-right":
+        return "2"
+    elif position == "bottom-left":
+        return "3"
+    elif position == "bottom-right":
+        return "4"
+    else:
+        raise ValueError(f"Invalid position: {position}")
+
+
+def _append_scatter_trace(
+    fig: go.Figure,
+    umap_df: pd.DataFrame,
+    color_values: list,
+    position: str,
+) -> go.Scattergl:
+    trace = go.Scattergl(
+        x=umap_df["UMAP_1"],
+        y=umap_df["UMAP_2"],
+        mode="markers",
+        marker=dict(
+            color=color_values,
+        ),
+        customdata=umap_df[SCATTER_CUSTOMDATA],
+        hovertemplate=SCATTER_HOVERTEMPLATE,
+        showlegend=False,
+    )
+
+    row, col = _map_position_to_row_col(position)
+    fig.add_trace(trace, row=row, col=col)
+
+
+def _annotate_scatter_trace(
+    fig: go.Figure,
+    text: str,
+    position: str,
+) -> go.Figure:
+    xref = f"x{_map_position_to_domain(position)} domain"
+    yref = f"y{_map_position_to_domain(position)} domain"
+
+    fig.add_annotation(
+        text=text,
+        x=0.01,
+        y=1.01,
+        xref=xref,
+        yref=yref,
+        xanchor="left",
+        yanchor="top",
+        showarrow=False,
+        font=dict(
+            size=14,
+            family=PLOTLY_TITLE_FONT,
+        ),
+    )
+
+
+def append_seurat_clusters_trace(
+    fig: go.Figure,
+    umap_df: pd.DataFrame,
+    position: str,
+    title: str = "Seurat cluster",
+) -> go.Figure:
+    clusters = [str(i) for i in sorted(umap_df["seurat_clusters"].astype(int).unique())]
+
+    cluster_colors = apc.palettes.all_ordered.colors * (
+        1 + len(clusters) // len(apc.palettes.all_ordered.colors)
+    )
+    cluster_colors = cluster_colors[: len(clusters)]
+    cluster_color_map = dict(zip(clusters, cluster_colors, strict=True))
+
+    _append_scatter_trace(
+        fig,
+        umap_df,
+        umap_df["seurat_clusters"].map(cluster_color_map),
+        position,
+    )
+    _annotate_scatter_trace(
+        fig,
+        title,
+        position,
+    )
+
+
+def append_expression_trace(
+    fig: go.Figure,
+    umap_df: pd.DataFrame,
+    position: str,
+    title: str = "Expression",
+) -> go.Figure:
+    umap_zero_df = umap_df[umap_df["gene_expression"] == 0]
+    umap_nonzero_df = umap_df[umap_df["gene_expression"] != 0]
+
+    _append_scatter_trace(
+        fig,
+        umap_zero_df,
+        apc.gray,
+        position,
+    )
+
+    trace = go.Scattergl(
+        x=umap_nonzero_df["UMAP_1"],
+        y=umap_nonzero_df["UMAP_2"],
+        mode="markers",
+        marker=dict(
+            color=umap_nonzero_df["gene_expression"],
+            colorscale=GRAY_GRADIENT.to_plotly_colorscale(),
+            colorbar=dict(
+                title=dict(
+                    text="Expression",
+                    font=dict(family=apc.style_defaults.DEFAULT_FONT_PLOTLY + "-SemiBold", size=14),
+                ),
+                outlinewidth=0,
+                thickness=15,
+                ypad=0,
+                len=0.45,
+                y=0.78,
+                x=1,
+                xref="paper",
+                yref="paper",
+                yanchor="middle",
+                tickfont=dict(
+                    size=12,
+                    family=apc.style_defaults.MONOSPACE_FONT_PLOTLY,
+                ),
+            ),
+        ),
+        customdata=umap_nonzero_df[SCATTER_CUSTOMDATA],
+        hovertemplate=SCATTER_HOVERTEMPLATE,
+        showlegend=False,
+    )
+
+    row, col = _map_position_to_row_col(position)
+    fig.add_trace(trace, row=row, col=col)
+
+    _annotate_scatter_trace(
+        fig,
+        title,
+        position,
+    )
+
+
+def append_tissue_type_trace(
+    fig: go.Figure,
+    umap_df: pd.DataFrame,
+    position: str,
+    title: str = "Cluster tissue type",
+) -> go.Figure:
+    _append_scatter_trace(
+        fig,
+        umap_df,
+        umap_df["cluster_tissue_color"],
+        position,
+    )
+    _annotate_scatter_trace(
+        fig,
+        title,
+        position,
+    )
+
+
+def append_cell_tissue_type_trace(
+    fig: go.Figure,
+    umap_df: pd.DataFrame,
+    position: str,
+    title: str = "Cell tissue type",
+) -> go.Figure:
+    _append_scatter_trace(
+        fig,
+        umap_df,
+        umap_df["Tissue Type"].map(TISSUE_TYPE_PALETTE),
+        position,
+    )
+    _annotate_scatter_trace(
+        fig,
+        title,
+        position,
+    )
+
+
+def _append_tissue_type_legend(
+    fig: go.Figure,
+    legend_x: float = 1.015,
+    legend_y: float = 0.47,
+    y_offset: float = 0.024,
+    title_offset: float = 0.03,
+) -> go.Figure:
+    fig.add_annotation(
+        text="Tissue color",
+        x=legend_x,
+        y=legend_y,
+        yanchor="middle",
+        xanchor="left",
+        xref="paper",
+        yref="paper",
+        showarrow=False,
+        font=dict(color="black", family=PLOTLY_TITLE_FONT, size=14),
+    )
+
+    for i, (tissue, color) in enumerate(TISSUE_TYPE_PALETTE.items()):
+        if tissue == "muscle-heart":
+            formatted_tissue_text = "Muscle / heart"
+        else:
+            formatted_tissue_text = tissue.capitalize().replace("-", " ")
+
+        fig.add_annotation(
+            text="■",
+            x=legend_x,
+            y=legend_y - title_offset - (i * y_offset),
+            yanchor="middle",
+            xanchor="left",
+            xref="paper",
+            yref="paper",
+            showarrow=False,
+            font=dict(color=color, size=20),
+        )
+
+        fig.add_annotation(
+            text=formatted_tissue_text,
+            x=legend_x + 0.03,
+            y=legend_y - title_offset - (i * y_offset) - 0.003,
+            yanchor="middle",
+            xanchor="left",
+            xref="paper",
+            yref="paper",
+            showarrow=False,
+            font=dict(color=color, size=12),
+        )
+
+
+def plot_expression_umap(
+    stage: CionaStage,
+    input_id: str,
+    input_id_type: CionaIDTypes,
+    mapper: IdentifierMapper,
+    data_dirpath: str | Path = PIEKARZ_DATA_DIRPATH,
+    annotation_data_dirpath: str | Path = CAO_DATA_DIRPATH,
+    plot_order: tuple[str, ...] = (
+        "seurat_clusters",
+        "expression",
+        "tissue_type",
+        "cell_tissue_type",
+    ),
+    marker_size: int = 3,
+    width: int = 850,
+    height: int = 800,
+    image_filepath: str | Path | None = None,
+    html_filepath: str | Path | None = None,
+) -> go.Figure:
+    """Plot UMAP visualizations of gene expression and cell type annotations.
+
+    Args:
+        stage: The developmental stage to plot
+        input_id: The gene identifier to plot
+        input_id_type: The type of the input identifier
+        data_dirpath: Path to the Piekarz scRNA-seq data directory
+        annotation_data_dirpath: Path to the Cao annotation data directory
+        mapper: IdentifierMapper instance for ID conversion
+
+    Returns:
+        A plotly Figure object with 4 UMAP plots showing:
+        - Seurat clusters
+        - Gene expression
+        - Cluster tissue types
+        - Cell tissue types
+    """
+    data_dirpath = Path(data_dirpath)
+
+    adata = load_ciona_scrnaseq_data(stage, data_dir=data_dirpath)
+
+    umap_df = extract_umap_coordinates(adata)
+    umap_df = _merge_cluster_annotations(
+        umap_df,
+        stage,
+        data_dirpath / "cluster_annotations" / "Ciona_scRNAseq_cluster_annotations.tsv",
+    )
+    umap_df = _merge_tissue_types(umap_df, stage, annotation_data_dirpath)
+    umap_df.sort_values(["top_cluster_tissue_type", "top_cluster_suffix"], inplace=True)
+
+    all_ciona_ids = mapper.map_to_all(input_id, input_id_type)
+
+    uniprot_id = all_ciona_ids[CionaIDTypes.NONREF_PROTEIN]
+    ky_id = all_ciona_ids[CionaIDTypes.KY_ID]
+    hgnc_gene_symbol = all_ciona_ids[CionaIDTypes.HGNC_GENE_SYMBOL]
+
+    umap_df = _add_gene_expression(umap_df, adata, ky_id)
+
+    fig = make_subplots(
+        rows=2,
+        cols=2,
+        shared_xaxes="all",
+        shared_yaxes="all",
+        horizontal_spacing=0.03,
+        vertical_spacing=0.03,
+    )
+
+    # Plot positions based on the specified plot order.
+    plot_positions = ["top-left", "top-right", "bottom-left", "bottom-right"]
+
+    for position, plot in zip(plot_positions, plot_order, strict=True):
+        if plot == "seurat_clusters":
+            append_seurat_clusters_trace(
+                fig,
+                umap_df,
+                position,
+                title="Seurat cluster",
+            )
+        elif plot == "expression":
+            append_expression_trace(
+                fig, umap_df, position, title=f"<i>{hgnc_gene_symbol}</i> ({ky_id})"
+            )
+        elif plot == "tissue_type":
+            append_tissue_type_trace(fig, umap_df, position, title="Cluster tissue type")
+        elif plot == "cell_tissue_type":
+            append_cell_tissue_type_trace(fig, umap_df, position, title="Cell tissue type")
+
+    # Add UMAP axis labels.
+    fig.add_annotation(
+        text="UMAP1",
+        x=0,
+        y=0,
+        xref="x3 domain",
+        yref="y3 domain",
+        xanchor="left",
+        yanchor="top",
+        showarrow=False,
+        font=dict(
+            size=10,
+            color=apc.steel,
+        ),
+    )
+    fig.add_annotation(
+        text="UMAP2",
+        x=0,
+        y=0,
+        xref="x3 domain",
+        yref="y3 domain",
+        xanchor="right",
+        yanchor="bottom",
+        textangle=-90,
+        showarrow=False,
+        font=dict(
+            size=10,
+            color=apc.steel,
+        ),
+    )
+
+    # Add title annotation.
+    fig.add_annotation(
+        text=f"Single cell expression of <i>{hgnc_gene_symbol}</i> ({uniprot_id}) at {stage}",
+        x=0,
+        y=1.05,
+        xref="paper",
+        yref="paper",
+        xanchor="left",
+        yanchor="top",
+        showarrow=False,
+        font=dict(
+            size=16,
+            family=PLOTLY_TITLE_FONT,
+        ),
+    )
+
+    _append_tissue_type_legend(
+        fig,
+        legend_x=1.015,
+        legend_y=0.47,
+        y_offset=0.024,
+        title_offset=0.03,
+    )
+
+    fig.update_layout(width=width, height=height, margin=dict(l=15, r=150))
+    fig.update_traces(marker=dict(size=marker_size))
+
+    apc.plotly.hide_xaxis_ticks(fig)
+    apc.plotly.hide_yaxis_ticks(fig)
+
+    if image_filepath:
+        os.makedirs(os.path.dirname(image_filepath), exist_ok=True)
+        fig.write_image(image_filepath)
+
+    if html_filepath:
+        os.makedirs(os.path.dirname(html_filepath), exist_ok=True)
+        fig.write_html(html_filepath, config=create_save_fig_config(width=width, height=height))
+
+    return fig
+
+
+def plot_expression_umap_for_all_stages(
+    input_id: str,
+    input_id_type: CionaIDTypes,
+    mapper: IdentifierMapper,
+    data_dirpath: str | Path = PIEKARZ_DATA_DIRPATH,
+    annotation_data_dirpath: str | Path = CAO_DATA_DIRPATH,
+    output_dirpath: str | Path = None,
+) -> go.Figure:
+    # Get all IDs using the provided mapper
+    all_ciona_ids = mapper.map_to_all(input_id, input_id_type)
+    uniprot_id = all_ciona_ids[CionaIDTypes.NONREF_PROTEIN]
+
+    output_dirpath = Path(output_dirpath)
+
+    for stage in tqdm(CionaStage.ordered_stages()):
+        index = CionaStage.ordered_stages().index(stage) + 1
+        index_stage = f"{index}_{stage}"
+
+        plot_expression_umap(
+            stage,
+            input_id,
+            input_id_type,
+            mapper,
+            data_dirpath,
+            annotation_data_dirpath,
+            image_filepath=output_dirpath
+            / f"{input_id}_{uniprot_id}_expression/"
+            / "umap"
+            / f"{index_stage}_{input_id}_umap.svg",
+            html_filepath=output_dirpath
+            / f"{input_id}_{uniprot_id}_expression/"
+            / "umap"
+            / f"{index_stage}_{input_id}_umap.html",
         )

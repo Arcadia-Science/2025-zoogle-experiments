@@ -5,13 +5,18 @@ import pandas as pd
 import plotly.graph_objects as go
 import scanpy as sc
 
-from zoogletools.ciona.constants import STAGE_COLORS, CionaStage
+from zoogletools.ciona.constants import (
+    CAO_DATA_DIRPATH,
+    PIEKARZ_DATA_DIRPATH,
+    STAGE_COLORS,
+    CionaStage,
+)
 from zoogletools.ciona.data_processing import _append_tech_replicate_to_barcode, load_cell_clusters
 from zoogletools.plotting import create_save_fig_config, hex_to_plotly_rgba
 
 
 def load_cao_cell_barcodes(
-    data_dir: str | Path = Path("../../data/SCP454"),
+    data_dir: str | Path = CAO_DATA_DIRPATH,
 ) -> pd.DataFrame:
     cell_clusters = load_cell_clusters(data_dir)
     cao_cell_barcodes = cell_clusters[["stage_replicate", "barcode"]].copy()
@@ -22,7 +27,7 @@ def load_cao_cell_barcodes(
 
 def load_piekarz_scrnaseq_data(
     stage: CionaStage,
-    data_dir: str | Path = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz"),
+    data_dir: str | Path = PIEKARZ_DATA_DIRPATH,
 ) -> sc.AnnData:
     """
     Load the scRNA-seq data for a given developmental stage directly from the Piekarz dataset.
@@ -84,7 +89,7 @@ def load_piekarz_scrnaseq_data(
 
 
 def load_piekarz_cell_barcodes(
-    data_dir: str | Path = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz"),
+    data_dir: str | Path = PIEKARZ_DATA_DIRPATH,
 ) -> pd.DataFrame:
     data_dir = Path(data_dir)
 

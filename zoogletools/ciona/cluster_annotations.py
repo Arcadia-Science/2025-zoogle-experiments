@@ -8,15 +8,17 @@ import numpy as np
 import pandas as pd
 
 import zoogletools as zt
-from zoogletools.ciona.constants import CionaStage
+from zoogletools.ciona.constants import (
+    PIEKARZ_DATA_DIRPATH,
+    TISSUE_TYPE_GRADIENTS,
+    CionaStage,
+)
 
 
 def quantify_cluster_annotations(
     cell_clusters: pd.DataFrame,
-    input_dirpath: Path = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz"),
-    output_dirpath: Path = Path(
-        "../../data/Ciona_intestinalis_scRNAseq_data_Piekarz/cluster_annotations"
-    ),
+    input_dirpath: str | Path = PIEKARZ_DATA_DIRPATH,
+    output_dirpath: str | Path = Path(PIEKARZ_DATA_DIRPATH / "cluster_annotations"),
 ) -> None:
     """Count cluster annotations from the Cao et al. data
         for each developmental stage in the Piekarz et al. data.
@@ -181,21 +183,9 @@ def smooth_gradient_from_palette(palette: apc.Palette):
     return apc.Gradient(palette.name, palette.colors).interpolate_lightness()
 
 
-TISSUE_PALETTE_DICT = {
-    "epidermis": smooth_gradient_from_palette(apc.palettes.blue_shades),
-    "nervous-system": smooth_gradient_from_palette(apc.palettes.purple_shades),
-    "notochord": smooth_gradient_from_palette(apc.palettes.warm_gray_shades),
-    "mesenchyme": smooth_gradient_from_palette(apc.palettes.red_shades),
-    "muscle-heart": smooth_gradient_from_palette(apc.palettes.pink_shades),
-    "endoderm": smooth_gradient_from_palette(apc.palettes.yellow_shades),
-    "germ": smooth_gradient_from_palette(apc.palettes.green_shades),
-    "unannotated": smooth_gradient_from_palette(apc.palettes.cool_gray_shades),
-}
-
-
 def _assign_cluster_tissue_colors(
     cluster_annotations: dict[str, str],
-    tissue_palette: dict[str, apc.Gradient] = TISSUE_PALETTE_DICT,
+    tissue_palette: dict[str, apc.Gradient] = TISSUE_TYPE_GRADIENTS,
 ) -> dict[str, str]:
     """Assign colors to clusters based on their top cell type.
 
@@ -224,7 +214,7 @@ def _assign_cluster_tissue_colors(
 
 
 def process_quantified_cluster_annotations(
-    annotation_filepath: str,
+    annotation_filepath: str | Path,
 ) -> tuple[pd.DataFrame, dict]:
     """Process cluster annotations from a TSV file and return formatted results.
 
@@ -237,6 +227,7 @@ def process_quantified_cluster_annotations(
             - Dictionary mapping clusters to their top cell types
     """
     CAC = ClusterAnnotationsColumns
+    annotation_filepath = Path(annotation_filepath)
 
     cluster_annotations = pd.read_csv(annotation_filepath, sep="\t")
     stage = cluster_annotations["stage"].unique()[0]

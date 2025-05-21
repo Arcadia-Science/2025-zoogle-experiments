@@ -1,5 +1,13 @@
 import arcadia_pycolor as apc
 
+PLOTLY_TITLE_FONT = apc.style_defaults.DEFAULT_FONT_PLOTLY + "-SemiBold"
+
+GRAY_GRADIENT = (
+    apc.Gradient(name="grays", colors=[apc.slate, apc.charcoal, apc.steel, apc.cloud, apc.dove])
+    .interpolate_lightness()
+    .reverse()
+)
+
 DEFAULT_FUNNEL_COLOR_LIST = [
     apc.aster,
     apc.lapis,
