@@ -112,3 +112,14 @@ TISSUE_TYPE_PALETTE = {
     "germ": apc.lime,
     "unannotated": apc.ice,
 }
+
+TISSUE_TYPE_PALETTE = {
+    "epidermis": apc.aegean,
+    "nervous-system": apc.tanzanite,
+    "notochord": apc.bark,
+    "mesenchyme": apc.dragon,
+    "muscle-heart": apc.rose,
+    "endoderm": apc.canary,
+    "germ": apc.lime,
+    "unannotated": apc.ice,
+}
