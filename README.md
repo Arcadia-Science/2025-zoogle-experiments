@@ -27,7 +27,7 @@ This repository contains the code for the 2025 Zoogle collabs. This includes cod
 
 1. Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
 1. Generate mapping files between Ciona gene IDs and other identifiers.
-1. [TBI] Generate scatter plots and other plots of Ciona gene expression.
+2. [TBI] Generate scatter plots and other plots of Ciona gene expression.
 
 ### Utilities
 
@@ -106,7 +106,15 @@ This repository contains the following folders:
 
 1. **Pre-processing.** After downloading the data, the data is preprocessed and filtered using scripts included in the `zoogletools` package. See [this README](zoogletools/data_processing/README.md) for more details.
 
-2. **Filtering.** To run the filtering pipeline, refer to the [filtering notebook](notebooks/1_filtering.ipynb).
+1. **Filtering.** To run the filtering pipeline, refer to the [filtering notebook](notebooks/1_filtering.ipynb).
+
+1. **Salpingoeca rosetta analysis.** To generate plots of *Salpingoeca rosetta* gene expression, refer to the [plotting notebook](notebooks/Salpingoeca-rosetta/2_salpingoeca-rosetta-expression.ipynb).
+
+1. **Ciona identifier mapping.** To see how we generated identifier mappings between Ciona gene IDs and other identifiers, refer to [all-v-all BLAST notebook](notebooks/Ciona-intestinalis/3_ciona-all-v-all-blast.ipynb) and [post-processing notebook](notebooks/Ciona-intestinalis/4_ciona-blast-processing.ipynb).
+
+1. **Ciona cell cluster annotation.** To see how we generated cell cluster annotations for the Ciona scRNA-Seq data, refer to the [cell cluster annotation notebook](notebooks/Ciona-intestinalis/5_ciona-cell-cluster-annotation.ipynb).
+
+1. **Ciona scRNA-Seq analysis.** To generate plots of Ciona scRNA-Seq data, refer to the [Ciona scRNA-Seq notebook](notebooks/Ciona-intestinalis/6_ciona-scrnaseq-expression.ipynb).
 
 ### Compute Specifications
 
