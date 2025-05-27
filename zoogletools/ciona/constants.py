@@ -93,13 +93,13 @@ def smooth_gradient_from_palette(palette: apc.Palette):
 
 TISSUE_TYPE_GRADIENTS = {
     "epidermis": smooth_gradient_from_palette(apc.palettes.blue_shades),
-    "nervous_system": smooth_gradient_from_palette(apc.palettes.purple_shades),
+    "nervous-system": smooth_gradient_from_palette(apc.palettes.purple_shades),
     "notochord": smooth_gradient_from_palette(apc.palettes.warm_gray_shades),
     "mesenchyme": smooth_gradient_from_palette(apc.palettes.red_shades),
     "muscle-heart": smooth_gradient_from_palette(apc.palettes.pink_shades),
     "endoderm": smooth_gradient_from_palette(apc.palettes.yellow_shades),
-    "unannotated": smooth_gradient_from_palette(apc.palettes.cool_gray_shades),
     "germ": smooth_gradient_from_palette(apc.palettes.green_shades),
+    "unannotated": smooth_gradient_from_palette(apc.palettes.cool_gray_shades),
 }
 
 TISSUE_TYPE_PALETTE = {
