@@ -9,6 +9,7 @@ PIEKARZ_DATA_DIRPATH = Path("../../data/Ciona_intestinalis_scRNAseq_data_Piekarz
 ZOOGLE_RESULTS_DIRPATH = Path("../../data/2025-04-21-os-portal-reprocessed")
 CIONA_GENE_MODELS_DIRPATH = Path("../../data/Ciona_gene_models")
 CAO_DATA_DIRPATH = Path("../../data/SCP454")
+BULK_RNA_SEQ_DATA_DIRPATH = Path("../../data/Cirobu_RNASeq")
 
 
 # The correct order of developmental stages is as follows:

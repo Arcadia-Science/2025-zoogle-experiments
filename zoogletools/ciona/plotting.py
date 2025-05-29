@@ -1,17 +1,20 @@
 import os
 import warnings
+from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
 import arcadia_pycolor as apc
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import scanpy as sc
 from plotly.subplots import make_subplots
 from tqdm import tqdm
 
 from zoogletools.ciona.constants import (
+    BULK_RNA_SEQ_DATA_DIRPATH,
     CAO_DATA_DIRPATH,
     PIEKARZ_DATA_DIRPATH,
     TISSUE_TYPE_GRADIENTS,
@@ -1189,5 +1192,143 @@ def plot_expression_bubbles(
     if html_filepath:
         os.makedirs(os.path.dirname(html_filepath), exist_ok=True)
         fig.write_html(html_filepath, config=create_save_fig_config(width=width, height=height))
+
+    return fig
+
+
+BULK_RNA_SEQ_STAGES = [1, 8, 11, 12, 15, 21, 26]
+BULK_RNA_SEQ_PERCENT_DEVELOPMENT = [3, 23, 28, 32, 39, 57, 100]
+BULK_RNA_SEQ_REPLICATES = [1, 2]
+
+
+class BulkRNASeqDataTypes(StrEnum):
+    FPKM = "FPKM"  # FPKM: Fragments Per Kilobase Million.
+    RLE = "RLE"  # Relative Log Expression.
+
+
+def plot_bulk_rna_seq_expression(
+    input_id,
+    input_id_type,
+    mapper: IdentifierMapper,
+    data_dirpath: str | Path = BULK_RNA_SEQ_DATA_DIRPATH,
+    datatype=BulkRNASeqDataTypes.FPKM,
+    width=400,
+    height=250,
+    image_filepath: str | Path | None = None,
+    html_filepath: str | Path | None = None,
+    spacing: Literal["uniform", "scaled"] = "scaled",
+    adjust_ylimits=False,
+    override_kh_id: str | None = None,
+    override_gene_symbol: str | None = None,
+):
+    """Plot bulk RNA-seq expression data for a given KH ID across developmental stages.
+
+    Args:
+        input_kh_id (str): KH ID of gene to plot
+        datatype (str, optional): Expression data type to plot. Defaults to "FPKM".
+        width (int, optional): Plot width. Defaults to 800.
+        height (int, optional): Plot height. Defaults to 400.
+
+    Returns:
+        plotly.graph_objects.Figure: Expression plot
+    """
+    kh_id = input_id
+    hgnc_gene_symbol = input_id
+
+    try:
+        all_ciona_ids = mapper.map_to_all(input_id, input_id_type)
+        if not pd.isna(all_ciona_ids[CionaIDTypes.KH_ID]):
+            kh_id = "KH2012:" + all_ciona_ids[CionaIDTypes.KH_ID]
+            hgnc_gene_symbol = all_ciona_ids[CionaIDTypes.HGNC_GENE_SYMBOL]
+        else:
+            if override_kh_id is None:
+                print(f"No KH ID found for {input_id}. Try override_kh_id.")
+    except ValueError:
+        pass
+
+    if override_kh_id is not None:
+        kh_id = "KH2012:" + override_kh_id
+
+    if override_gene_symbol is not None:
+        hgnc_gene_symbol = override_gene_symbol
+
+    data = pd.DataFrame()
+
+    data_dirpath = Path(data_dirpath)
+
+    for stage in BULK_RNA_SEQ_STAGES:
+        for replicate in BULK_RNA_SEQ_REPLICATES:
+            full_data = pd.read_csv(
+                data_dirpath / f"Cirobu_RNA-Seq_stage{stage}_WT_Replicate{replicate}.csv",
+                sep=";",
+            )
+            full_data.rename(columns={"Unnamed: 0": "kh_id"}, inplace=True)
+            full_data["stage"] = f"S{stage}"
+            full_data["percent_development"] = BULK_RNA_SEQ_PERCENT_DEVELOPMENT[
+                BULK_RNA_SEQ_STAGES.index(stage)
+            ]
+            full_data["replicate"] = str(replicate)
+            full_data = full_data.loc[full_data["kh_id"] == kh_id]
+
+            data = pd.concat([data, full_data])
+
+    if spacing == "scaled":
+        xaxis_data = "percent_development"
+    elif spacing == "uniform":
+        xaxis_data = "stage"
+
+    fig = px.line(
+        data,
+        x=xaxis_data,
+        y=datatype,
+        color="replicate",
+        color_discrete_map={"1": apc.umber.hex_code, "2": apc.canary.hex_code},
+        markers=True,
+    )
+
+    fig.update_layout(
+        xaxis_title="Stage",
+        yaxis_title=datatype,
+        width=width,
+        height=height,
+        legend=dict(yanchor="top", y=1.02, xanchor="left", x=1),
+        margin=dict(t=50),
+    )
+
+    title = f"Expression of {hgnc_gene_symbol} ({kh_id})<br>in bulk RNA-Seq"
+
+    fig.add_annotation(
+        text=title,
+        xref="paper",
+        yref="paper",
+        x=0.5,
+        xanchor="center",
+        y=1.4,
+        showarrow=False,
+        align="center",
+        font=dict(
+            size=15,
+            family=PLOTLY_TITLE_FONT,
+        ),
+    )
+
+    if adjust_ylimits:
+        fig.update_yaxes(tickfont=dict(size=10), range=[0, data[datatype].max() * 1.1])
+
+    if spacing == "scaled":
+        fig.update_xaxes(
+            ticktext=[f"S{i}" for i in BULK_RNA_SEQ_STAGES],
+            tickvals=BULK_RNA_SEQ_PERCENT_DEVELOPMENT,
+            tickfont=dict(size=10),
+            tickangle=45,
+        )
+    elif spacing == "uniform":
+        pass
+
+    if image_filepath is not None:
+        fig.write_image(image_filepath)
+
+    if html_filepath is not None:
+        fig.write_html(html_filepath, config=create_save_fig_config(width, height))
 
     return fig
