@@ -920,8 +920,14 @@ def get_tissue_expression_data(
             expression_by_tissue = (
                 umap_df.groupby("Tissue Type")
                 .agg(
-                    mean_expression=("gene_expression", lambda x: np.mean([i for i in x if i > 0])),
-                    n_expressing_cells=("gene_expression", lambda x: np.sum([i > 0 for i in x])),
+                    mean_expression=(
+                        "gene_expression",
+                        lambda x: x[x > 0].mean() if (x > 0).any() else 0,
+                    ),
+                    n_expressing_cells=(
+                        "gene_expression",
+                        lambda x: x[x > 0].sum(),
+                    ),
                     n_cells=("gene_expression", "count"),
                 )
                 .reset_index()
@@ -1104,22 +1110,22 @@ def _add_bubble_legend(
 
     # Calculate how much inset relative to the square grid
     # the background circle needs to be, based on its size.
-    circle_offset = (1 - back_circle_size) / 2
+    back_circle_offset = (1 - back_circle_size) / 2
 
-    circle_x0 = num_cols - 1.5 + circle_offset
-    circle_y0 = num_rows - 0.5 + circle_offset
+    back_circle_x0 = num_cols - 1.5 + back_circle_offset
+    back_circle_y0 = num_rows - 0.5 + back_circle_offset
 
-    circle_x1 = circle_x0 + back_circle_size
-    circle_y1 = circle_y0 + back_circle_size
+    back_circle_x1 = back_circle_x0 + back_circle_size
+    back_circle_y1 = back_circle_y0 + back_circle_size
 
     fig.add_shape(
         type="circle",
         xref="x",
         yref="y",
-        x0=circle_x0,
-        y0=circle_y0,
-        x1=circle_x1,
-        y1=circle_y1,
+        x0=back_circle_x0,
+        y0=back_circle_y0,
+        x1=back_circle_x1,
+        y1=back_circle_y1,
         fillcolor=apc.gray,
         line=dict(
             color=apc.marine,
@@ -1130,20 +1136,20 @@ def _add_bubble_legend(
 
     # Obtain the center position of the back circle; then subtract
     # the radius of the front circle.
-    circle2_x0 = (circle_x1 + circle_x0) / 2 - front_circle_size / 2
-    circle2_y0 = (circle_y1 + circle_y0) / 2 - front_circle_size / 2
+    front_circle_x0 = (back_circle_x1 + back_circle_x0) / 2 - front_circle_size / 2
+    front_circle_y0 = (back_circle_y1 + back_circle_y0) / 2 - front_circle_size / 2
 
-    circle2_x1 = circle2_x0 + front_circle_size
-    circle2_y1 = circle2_y0 + front_circle_size
+    front_circle_x1 = front_circle_x0 + front_circle_size
+    front_circle_y1 = front_circle_y0 + front_circle_size
 
     fig.add_shape(
         type="circle",
         xref="x",
         yref="y",
-        x0=circle2_x0,
-        y0=circle2_y0,
-        x1=circle2_x1,
-        y1=circle2_y1,
+        x0=front_circle_x0,
+        y0=front_circle_y0,
+        x1=front_circle_x1,
+        y1=front_circle_y1,
         fillcolor=front_circle_color,
         line=dict(
             color=apc.white,
