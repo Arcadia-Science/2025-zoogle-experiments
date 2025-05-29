@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 from typing import Literal
 
@@ -872,3 +873,321 @@ def plot_expression_umap_for_all_stages(
             / "umap"
             / f"{index_stage}_{input_id}_umap.html",
         )
+
+
+def get_tissue_expression_data(
+    input_id,
+    input_id_type,
+    data_dirpath=PIEKARZ_DATA_DIRPATH,
+    annotation_data_dirpath=CAO_DATA_DIRPATH,
+):
+    """Get tissue-specific expression data for a given gene across developmental stages.
+
+    Args:
+        input_id (str): Gene identifier
+        input_id_type (CionaIDTypes): Type of input identifier
+        data_dirpath (Path): Path to Piekarz data directory
+        annotation_data_dirpath (Path): Path to Cao data directory
+
+    Returns:
+        pd.DataFrame
+    """
+    mapper = IdentifierMapper()
+    data_collector = pd.DataFrame()
+
+    for stage in CionaStage.ordered_stages():
+        adata = load_ciona_scrnaseq_data(stage, data_dir=data_dirpath)
+
+        umap_df = extract_umap_coordinates(adata)
+        umap_df = _merge_cluster_annotations(
+            umap_df,
+            stage,
+            data_dirpath / "cluster_annotations" / "Ciona_scRNAseq_cluster_annotations.tsv",
+        )
+        umap_df = _merge_tissue_types(umap_df, stage, annotation_data_dirpath)
+        umap_df.sort_values(["top_cluster_tissue_type", "top_cluster_suffix"], inplace=True)
+
+        all_ciona_ids = mapper.map_to_all(input_id, input_id_type)
+
+        ky_id = all_ciona_ids[CionaIDTypes.KY_ID]
+
+        umap_df = _add_gene_expression(umap_df, adata, ky_id)
+
+        with warnings.catch_warnings():
+            # Sometimes this will throw a warning if a row doesn't show expression,
+            # but the analysis will run just fine.
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            expression_by_tissue = (
+                umap_df.groupby("Tissue Type")
+                .agg(
+                    mean_expression=(
+                        "gene_expression",
+                        lambda x: x[x > 0].mean() if (x > 0).any() else 0,
+                    ),
+                    n_expressing_cells=(
+                        "gene_expression",
+                        lambda x: x[x > 0].sum(),
+                    ),
+                    n_cells=("gene_expression", "count"),
+                )
+                .reset_index()
+            )
+            expression_by_tissue["stage"] = stage
+            expression_by_tissue["percent_expressing"] = (
+                expression_by_tissue["n_expressing_cells"] / expression_by_tissue["n_cells"] * 100
+            )
+
+        data_collector = pd.concat([data_collector, expression_by_tissue])
+
+    return data_collector
+
+
+def append_total_cell_bubbles(
+    fig: go.Figure,
+    data_collector: pd.DataFrame,
+    size_scaling_function=lambda x: np.round(np.sqrt(x), 2),
+):
+    for tissue_type in TISSUE_TYPE_PALETTE.keys():
+        tissue_rows = data_collector[data_collector["Tissue Type"] == tissue_type]
+        trace = go.Scatter(
+            x=tissue_rows["Tissue Type"],
+            y=tissue_rows["stage"],
+            mode="markers",
+            marker=dict(
+                color=apc.gray,
+                size=tissue_rows["n_cells"].apply(size_scaling_function),
+                opacity=0.3,
+                line=dict(color=TISSUE_TYPE_PALETTE[tissue_type], width=1.5),
+            ),
+            zorder=1,
+            showlegend=False,
+            name="Total cells",
+            hoverinfo="skip",
+        )
+        fig.add_trace(trace)
+
+
+BUBBLE_PLOT_HOVERTEMPLATE = (
+    "All <b>%{customdata[0]} cells</b><br>"
+    + "at stage <b>%{customdata[1]}</b><br>"
+    + "<b>% expressing:</b> %{customdata[2]:.2f} (%{customdata[3]} / %{customdata[4]} cells)<br>"
+    + "<b>Mean expression:</b> %{customdata[5]:.2f}"
+)
+
+BUBBLE_PLOT_CUSTOMDATA = [
+    "Tissue Type",
+    "stage",
+    "percent_expressing",
+    "n_expressing_cells",
+    "n_cells",
+    "mean_expression",
+]
+
+
+def append_expressing_cell_bubbles(
+    fig: go.Figure,
+    input_id: str,
+    data_collector: pd.DataFrame,
+    size_scaling_function=lambda x: np.round(np.sqrt(x), 2),
+):
+    trace = go.Scatter(
+        x=data_collector["Tissue Type"],
+        y=data_collector["stage"],
+        mode="markers",
+        marker=dict(
+            color=data_collector["mean_expression"],
+            size=data_collector["n_expressing_cells"].apply(size_scaling_function),
+            colorscale=GRAY_GRADIENT.to_plotly_colorscale(),
+            opacity=1,
+            colorbar=dict(
+                title=f"<i>{input_id}</i>",
+                title_font=dict(
+                    size=16,
+                    family=apc.style_defaults.DEFAULT_FONT_PLOTLY + "-SemiBold",
+                ),
+                tickfont=dict(family=apc.style_defaults.MONOSPACE_FONT_PLOTLY),
+                thickness=15,
+                outlinewidth=0,
+            ),
+        ),
+        zorder=2,
+        showlegend=False,
+        hovertemplate=BUBBLE_PLOT_HOVERTEMPLATE,
+        customdata=data_collector[BUBBLE_PLOT_CUSTOMDATA],
+    )
+
+    fig.add_trace(trace)
+
+
+def _add_bubble_grid(
+    fig: go.Figure,
+    num_cols: int = len(TISSUE_TYPE_PALETTE),
+    num_rows: int = len(CionaStage.ordered_stages()),
+):
+    fig.update_xaxes(
+        tickson="boundaries",
+        showgrid=True,
+        gridcolor=apc.gray,
+        scaleanchor="y",
+        scaleratio=1,
+        tickangle=-45,
+        range=[-0.9, num_cols - 0.3],
+        side="top",
+    )
+    fig.update_yaxes(
+        autorange="reversed",
+        tickson="boundaries",
+        showgrid=True,
+        gridcolor=apc.gray,
+        scaleanchor="x",
+        scaleratio=1,
+        range=[-0.3, num_rows + 1],
+    )
+
+
+def _add_bubble_legend(
+    fig: go.Figure,
+    num_cols: int = len(TISSUE_TYPE_PALETTE),
+    num_rows: int = len(CionaStage.ordered_stages()),
+    back_circle_size=0.7,
+    front_circle_size=0.2,
+    front_circle_color=apc.steel,
+):
+    # Create white background rectangle for legend.
+    fig.add_shape(
+        type="rect",
+        x0=num_cols - 2.5,
+        y0=num_rows - 0.5,
+        x1=num_cols - 0.5,
+        y1=num_rows + 1,
+        fillcolor=apc.white,
+        line=dict(width=0),
+    )
+
+    # Add text annotations.
+    fig.add_annotation(
+        xanchor="center",
+        xref="x",
+        yref="y",
+        x=num_cols - 1,
+        y=num_rows + 0.5,
+        text="Total cells",
+        showarrow=False,
+        font=dict(family=apc.style_defaults.DEFAULT_FONT_PLOTLY, size=10, color=apc.cloud),
+    )
+    fig.add_annotation(
+        xanchor="right",
+        yanchor="middle",
+        align="right",
+        xref="x",
+        yref="y",
+        x=num_cols - 1.2,
+        y=num_rows,
+        text="Expressing<br>cells",
+        showarrow=False,
+        font=dict(
+            family=apc.style_defaults.DEFAULT_FONT_PLOTLY + "-SemiBold",
+            size=10,
+            color=front_circle_color,
+        ),
+    )
+
+    fig.add_annotation(
+        xanchor="left",
+        yanchor="middle",
+        align="left",
+        xref="x",
+        yref="y",
+        x=num_cols - 2.4,
+        y=num_rows + 0.5,
+        text="Key",
+        font=dict(
+            family=apc.style_defaults.DEFAULT_FONT_PLOTLY + "-SemiBold",
+            size=16,
+        ),
+        showarrow=False,
+    )
+
+    # Calculate how much inset relative to the square grid
+    # the background circle needs to be, based on its size.
+    back_circle_offset = (1 - back_circle_size) / 2
+
+    back_circle_x0 = num_cols - 1.5 + back_circle_offset
+    back_circle_y0 = num_rows - 0.5 + back_circle_offset
+
+    back_circle_x1 = back_circle_x0 + back_circle_size
+    back_circle_y1 = back_circle_y0 + back_circle_size
+
+    fig.add_shape(
+        type="circle",
+        xref="x",
+        yref="y",
+        x0=back_circle_x0,
+        y0=back_circle_y0,
+        x1=back_circle_x1,
+        y1=back_circle_y1,
+        fillcolor=apc.gray,
+        line=dict(
+            color=apc.marine,
+            width=1.5,
+        ),
+        opacity=0.2,
+    )
+
+    # Obtain the center position of the back circle; then subtract
+    # the radius of the front circle.
+    front_circle_x0 = (back_circle_x1 + back_circle_x0) / 2 - front_circle_size / 2
+    front_circle_y0 = (back_circle_y1 + back_circle_y0) / 2 - front_circle_size / 2
+
+    front_circle_x1 = front_circle_x0 + front_circle_size
+    front_circle_y1 = front_circle_y0 + front_circle_size
+
+    fig.add_shape(
+        type="circle",
+        xref="x",
+        yref="y",
+        x0=front_circle_x0,
+        y0=front_circle_y0,
+        x1=front_circle_x1,
+        y1=front_circle_y1,
+        fillcolor=front_circle_color,
+        line=dict(
+            color=apc.white,
+            width=1,
+        ),
+    )
+
+
+def plot_expression_bubbles(
+    data_collector,
+    input_id,
+    width=620,
+    height=800,
+    size_scaling_function=lambda x: np.round(np.sqrt(x), 2) * 1.1,
+    image_filepath: str | Path = None,
+    html_filepath: str | Path = None,
+):
+    fig = go.Figure()
+
+    append_total_cell_bubbles(fig, data_collector, size_scaling_function)
+    append_expressing_cell_bubbles(fig, input_id, data_collector, size_scaling_function)
+
+    fig.update_layout(
+        height=height,
+        width=width,
+    )
+
+    _add_bubble_grid(fig)
+    _add_bubble_legend(fig)
+
+    apc.plotly.set_axes_categorical(fig)
+
+    if image_filepath:
+        os.makedirs(os.path.dirname(image_filepath), exist_ok=True)
+        fig.write_image(image_filepath)
+
+    if html_filepath:
+        os.makedirs(os.path.dirname(html_filepath), exist_ok=True)
+        fig.write_html(html_filepath, config=create_save_fig_config(width=width, height=height))
+
+    return fig
