@@ -1,5 +1,5 @@
 from difflib import get_close_matches
-from enum import Enum
+from enum import Enum, StrEnum
 
 import arcadia_pycolor as apc
 import pandas as pd
@@ -10,29 +10,63 @@ from zoogletools.plotting import create_save_fig_config
 
 apc.plotly.setup()
 
-SALPINGOECA_EXPRESSION_STAGES = ["Slow Swimmer", "Fast Swimmer", "Rosette", "Thecate"]
+
+class SalpingoecaStage(StrEnum):
+    """Enum for Salpingoeca expression stages"""
+
+    SLOW_SWIMMER = "Slow Swimmer"
+    FAST_SWIMMER = "Fast Swimmer"
+    ROSETTE = "Rosette"
+    THECATE = "Thecate"
+
+
+SALPINGOECA_EXPRESSION_STAGES = [
+    SalpingoecaStage.SLOW_SWIMMER,
+    SalpingoecaStage.FAST_SWIMMER,
+    SalpingoecaStage.ROSETTE,
+    SalpingoecaStage.THECATE,
+]
 SALPINGOECA_CELLTYPE_COLORMAP = {
-    "Slow Swimmer": apc.seaweed.hex_code,
-    "Fast Swimmer": apc.crow.hex_code,
-    "Rosette": apc.aster.hex_code,
-    "Thecate": apc.dragon.hex_code,
+    SalpingoecaStage.SLOW_SWIMMER: apc.seaweed.hex_code,
+    SalpingoecaStage.FAST_SWIMMER: apc.crow.hex_code,
+    SalpingoecaStage.ROSETTE: apc.aster.hex_code,
+    SalpingoecaStage.THECATE: apc.dragon.hex_code,
 }
+
+DEFAULT_SIGNIFICANCE_COLORS = [
+    "white",
+    apc.lapis,
+    apc.aegean,
+    apc.vital,
+    apc.dove,
+]
+
 
 # This colorscale is used to map the significance values
 # within different ranges to different colors.
 # In plotly colormaps, overlapping values result in discrete color boundaries.
-SIGNIFICANCE_COLORSCALE = [
-    [0, "white"],  # These two entries show the background color,
-    [0.01, "white"],  # used for the diagonal of the heatmap.
-    [0.01, apc.lapis],  # p < 0.001 lower bound
-    [0.25, apc.lapis],  # p < 0.001 upper bound
-    [0.25, apc.aegean],  # p < 0.01 lower bound
-    [0.5, apc.aegean],  # p < 0.01 upper bound
-    [0.5, apc.vital],  # p < 0.05 lower bound
-    [0.75, apc.vital],  # p < 0.05 upper bound
-    [0.75, apc.dove],  # Not significant
-    [1, apc.dove],  # Not significant
-]
+def _create_significance_colorscale(colors: list[str]) -> list[list[str]]:
+    """Create a colorscale for the significance heatmap.
+
+    Args:
+        colors: List of colors to use for the significance heatmap
+    """
+    return [
+        [0, colors[0]],  # These two entries show the background color,
+        [0.01, colors[0]],  # used for the diagonal of the heatmap.
+        [0.01, colors[1]],  # p < 0.001 lower bound
+        [0.25, colors[1]],  # p < 0.001 upper bound
+        [0.25, colors[2]],  # p < 0.01 lower bound
+        [0.5, colors[2]],  # p < 0.01 upper bound
+        [0.5, colors[3]],  # p < 0.05 lower bound
+        [0.75, colors[3]],  # p < 0.05 upper bound
+        [0.75, colors[4]],  # Not significant
+        [1, colors[4]],  # Not significant
+    ]
+
+
+SIGNIFICANCE_COLORSCALE = _create_significance_colorscale(DEFAULT_SIGNIFICANCE_COLORS)
+
 # These values are used to map the significance values
 # to the colorbar.
 SIGNIFICANCE_COLOR_VALUE_MAP = {
@@ -119,7 +153,11 @@ def _convert_expression_rows_to_boxplot_df(expression_rows: pd.DataFrame) -> pd.
     return pd.DataFrame({"Cell type": cell_types, "TPM": tpm_values})
 
 
-def _create_boxplot_traces(boxplot_df: pd.DataFrame, showlegend: bool = False) -> list[go.Box]:
+def _create_boxplot_traces(
+    boxplot_df: pd.DataFrame,
+    showlegend: bool = False,
+    colormap: dict[SalpingoecaStage, str] = SALPINGOECA_CELLTYPE_COLORMAP,
+) -> list[go.Box]:
     """Create boxplot traces for each cell type.
 
     Args:
@@ -132,7 +170,7 @@ def _create_boxplot_traces(boxplot_df: pd.DataFrame, showlegend: bool = False) -
             go.Box(
                 x=boxplot_df[boxplot_df["Cell type"] == stage]["Cell type"],
                 y=boxplot_df[boxplot_df["Cell type"] == stage]["TPM"],
-                line=dict(color=SALPINGOECA_CELLTYPE_COLORMAP[stage]),
+                line=dict(color=colormap[stage]),
                 boxpoints="all",
                 showlegend=showlegend,
             )
@@ -176,6 +214,7 @@ def plot_expression_boxplot(
     height: int = 600,
     output_image_filepath: str = None,
     output_html_filepath: str = None,
+    colormap: dict[SalpingoecaStage, str] = SALPINGOECA_CELLTYPE_COLORMAP,
 ):
     """Plot the expression of a given symbol in the form of a boxplot.
 
@@ -183,10 +222,11 @@ def plot_expression_boxplot(
         symbol: HGNC gene symbol to plot
         expression_filepath: Path to the differential expression TSV file
         salpingoeca_map_ids: Dictionary mapping HGNC gene symbols to Salpingoeca protein IDs
-        output_image_filepath: Path to save the output image file
-        output_html_filepath: Path to save the output HTML file
         width: Width of the figure
         height: Height of the figure
+        output_image_filepath: Path to save the output image file
+        output_html_filepath: Path to save the output HTML file
+        colormap: Dictionary mapping Salpingoeca stages to colors
 
     Returns:
         fig: Plotly figure
@@ -194,7 +234,7 @@ def plot_expression_boxplot(
     expression_rows = _load_expression_rows(expression_filepath, salpingoeca_map_ids, symbol)
     boxplot_df = _convert_expression_rows_to_boxplot_df(expression_rows)
 
-    traces = _create_boxplot_traces(boxplot_df, showlegend=False)
+    traces = _create_boxplot_traces(boxplot_df, showlegend=False, colormap=colormap)
     fig = go.Figure(data=traces)
 
     fig.update_layout(
@@ -296,7 +336,9 @@ def _create_pvalue_label(p: float) -> str:
         return significance + " (n.s.)"
 
 
-def _create_heatmap_trace(sig_df: pd.DataFrame) -> go.Heatmap:
+def _create_heatmap_trace(
+    sig_df: pd.DataFrame, significance_colors: list[str] = DEFAULT_SIGNIFICANCE_COLORS
+) -> go.Heatmap:
     """Create a heatmap trace for a significance matrix.
 
     Args:
@@ -308,11 +350,13 @@ def _create_heatmap_trace(sig_df: pd.DataFrame) -> go.Heatmap:
     categorical_df = sig_df.map(lambda x: _categorize_pvalue(x) if not pd.isna(x) else x)
     labels = sig_df.map(lambda x: _create_pvalue_label(x))
 
+    colorscale = _create_significance_colorscale(significance_colors)
+
     return go.Heatmap(
         z=categorical_df.values,
         x=categorical_df.columns,
         y=categorical_df.index,
-        colorscale=SIGNIFICANCE_COLORSCALE,
+        colorscale=colorscale,
         hoverongaps=False,
         hoverinfo="text",
         text=labels,
@@ -328,6 +372,7 @@ def plot_significance_heatmap(
     height: int = 400,
     output_image_filepath: str = None,
     output_html_filepath: str = None,
+    significance_colors: list[str] = DEFAULT_SIGNIFICANCE_COLORS,
 ):
     """Plot the significance of a given symbol in the form of a heatmap.
 
@@ -346,7 +391,7 @@ def plot_significance_heatmap(
     expression_rows = _load_expression_rows(expression_filepath, salpingoeca_map_ids, target)
 
     significance_df = _get_significance_matrix(expression_rows)
-    trace = _create_heatmap_trace(significance_df)
+    trace = _create_heatmap_trace(significance_df, significance_colors)
 
     fig = go.Figure(trace)
 
@@ -381,6 +426,8 @@ def plot_expression_boxplot_and_heatmap(
     height: int = 325,
     output_image_filepath: str = None,
     output_html_filepath: str = None,
+    celltype_colormap: dict[SalpingoecaStage, str] = SALPINGOECA_CELLTYPE_COLORMAP,
+    significance_colors: list[str] = DEFAULT_SIGNIFICANCE_COLORS,
 ):
     """Plot the expression of a given symbol in the form of a boxplot and a heatmap.
 
@@ -406,11 +453,11 @@ def plot_expression_boxplot_and_heatmap(
         rows=1, cols=2, column_widths=[0.65, 0.35], horizontal_spacing=0.28, subplot_titles=("", "")
     )
 
-    boxplot_traces = _create_boxplot_traces(boxplot_df)
+    boxplot_traces = _create_boxplot_traces(boxplot_df, colormap=celltype_colormap)
     for trace in boxplot_traces:
         fig.add_trace(trace, row=1, col=1)
 
-    heatmap_trace = _create_heatmap_trace(heatmap_df)
+    heatmap_trace = _create_heatmap_trace(heatmap_df, significance_colors)
     fig.add_trace(heatmap_trace, row=1, col=2)
 
     fig.update_layout(
