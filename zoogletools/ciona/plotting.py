@@ -1196,7 +1196,12 @@ def plot_expression_bubbles(
     return fig
 
 
+# These values correspond to the numerical developmental stage (e.g. S1, or 1 cell),
+# as described in https://anatomypubs.onlinelibrary.wiley.com/doi/10.1002/dvdy.21188
 BULK_RNA_SEQ_STAGES = [1, 8, 11, 12, 15, 21, 26]
+
+# These values corespond to the percent development at each stage,
+# as described in https://anatomypubs.onlinelibrary.wiley.com/doi/10.1002/dvdy.21188
 BULK_RNA_SEQ_PERCENT_DEVELOPMENT = [3, 23, 28, 32, 39, 57, 100]
 BULK_RNA_SEQ_REPLICATES = [1, 2]
 
@@ -1216,7 +1221,7 @@ def plot_bulk_rna_seq_expression(
     height=250,
     image_filepath: str | Path | None = None,
     html_filepath: str | Path | None = None,
-    spacing: Literal["uniform", "scaled"] = "scaled",
+    spacing: Literal["stage", "percent_development"] = "stage",
     adjust_ylimits=False,
     override_kh_id: str | None = None,
     override_gene_symbol: str | None = None,
@@ -1224,10 +1229,19 @@ def plot_bulk_rna_seq_expression(
     """Plot bulk RNA-seq expression data for a given KH ID across developmental stages.
 
     Args:
-        input_kh_id (str): KH ID of gene to plot
-        datatype (str, optional): Expression data type to plot. Defaults to "FPKM".
-        width (int, optional): Plot width. Defaults to 800.
-        height (int, optional): Plot height. Defaults to 400.
+        input_id (str): Input ID of gene to plot
+        input_id_type (CionaIDTypes): Type of input ID
+        mapper (IdentifierMapper): Identifier mapper
+        data_dirpath (str | Path): Path to data directory
+        datatype (BulkRNASeqDataTypes): Expression data type to plot
+        width (int): Plot width
+        height (int): Plot height
+        image_filepath (str | Path): Path to save image
+        html_filepath (str | Path): Path to save HTML
+        spacing (Literal["uniform", "scaled"]): Spacing of x-axis
+        adjust_ylimits (bool): Whether to adjust y-limits
+        override_kh_id (str | None): Override KH ID
+        override_gene_symbol (str | None): Override gene symbol
 
     Returns:
         plotly.graph_objects.Figure: Expression plot
@@ -1272,14 +1286,9 @@ def plot_bulk_rna_seq_expression(
 
             data = pd.concat([data, full_data])
 
-    if spacing == "scaled":
-        xaxis_data = "percent_development"
-    elif spacing == "uniform":
-        xaxis_data = "stage"
-
     fig = px.line(
         data,
-        x=xaxis_data,
+        x=spacing,
         y=datatype,
         color="replicate",
         color_discrete_map={"1": apc.umber.hex_code, "2": apc.canary.hex_code},
@@ -1287,7 +1296,7 @@ def plot_bulk_rna_seq_expression(
     )
 
     fig.update_layout(
-        xaxis_title="Stage",
+        xaxis_title=spacing.title().replace("_", " "),
         yaxis_title=datatype,
         width=width,
         height=height,
@@ -1315,14 +1324,14 @@ def plot_bulk_rna_seq_expression(
     if adjust_ylimits:
         fig.update_yaxes(tickfont=dict(size=10), range=[0, data[datatype].max() * 1.1])
 
-    if spacing == "scaled":
+    if spacing == "percent_development":
         fig.update_xaxes(
             ticktext=[f"S{i}" for i in BULK_RNA_SEQ_STAGES],
             tickvals=BULK_RNA_SEQ_PERCENT_DEVELOPMENT,
             tickfont=dict(size=10),
             tickangle=45,
         )
-    elif spacing == "uniform":
+    elif spacing == "stage":
         pass
 
     if image_filepath is not None:
