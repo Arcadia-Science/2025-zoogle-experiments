@@ -1426,7 +1426,7 @@ def plot_bulk_rna_seq_expression_range(
     mapper: IdentifierMapper,
     data_dirpath: str | Path = BULK_RNA_SEQ_DATA_DIRPATH,
     datatype=BulkRNASeqDataTypes.FPKM,
-    width=400,
+    width=450,
     height=250,
     image_filepath: str | Path | None = None,
     html_filepath: str | Path | None = None,
@@ -1434,6 +1434,7 @@ def plot_bulk_rna_seq_expression_range(
     override_kh_id: str | None = None,
     override_gene_symbol: str | None = None,
     replicate_colors: dict[str, str] = REPLICATE_COLORS,
+    tickangle: int = 45,
 ):
     """Plot bulk RNA-seq expression data for a given KH ID across developmental stages.
 
@@ -1519,7 +1520,7 @@ def plot_bulk_rna_seq_expression_range(
     )
 
     fig.update_layout(legend_traceorder="normal")
-    fig.update_xaxes(tickangle=45)
+    fig.update_xaxes(tickangle=tickangle)
 
     apc.plotly.set_yticklabel_monospaced(fig)
     apc.plotly.set_xticklabel_monospaced(fig)
