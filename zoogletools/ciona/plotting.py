@@ -1199,16 +1199,50 @@ def plot_expression_bubbles(
 # These values correspond to the numerical developmental stage (e.g. S1, or 1 cell),
 # as described in https://anatomypubs.onlinelibrary.wiley.com/doi/10.1002/dvdy.21188
 BULK_RNA_SEQ_STAGES = [1, 8, 11, 12, 15, 21, 26]
+BULK_RNA_SEQ_STAGES_AS_STRINGS = [f"S{stage}" for stage in BULK_RNA_SEQ_STAGES]
 
 # These values corespond to the percent development at each stage,
 # as described in https://anatomypubs.onlinelibrary.wiley.com/doi/10.1002/dvdy.21188
 BULK_RNA_SEQ_PERCENT_DEVELOPMENT = [3, 23, 28, 32, 39, 57, 100]
 BULK_RNA_SEQ_REPLICATES = [1, 2]
 
+REPLICATE_COLORS = {"1": apc.sun, "2": apc.mustard}
+
 
 class BulkRNASeqDataTypes(StrEnum):
     FPKM = "FPKM"  # FPKM: Fragments Per Kilobase Million.
     RLE = "RLE"  # Relative Log Expression.
+
+
+def _extract_bulk_rna_seq_data(
+    kh_id: str,
+    data_dirpath: str | Path = BULK_RNA_SEQ_DATA_DIRPATH,
+):
+    data = pd.DataFrame()
+
+    data_dirpath = Path(data_dirpath)
+
+    for stage in BULK_RNA_SEQ_STAGES:
+        for replicate in BULK_RNA_SEQ_REPLICATES:
+            full_data = pd.read_csv(
+                data_dirpath / f"Cirobu_RNA-Seq_stage{stage}_WT_Replicate{replicate}.csv",
+                sep=";",
+            )
+            full_data.rename(columns={"Unnamed: 0": "kh_id"}, inplace=True)
+            full_data["stage"] = f"S{stage}"
+            full_data["percent_development"] = BULK_RNA_SEQ_PERCENT_DEVELOPMENT[
+                BULK_RNA_SEQ_STAGES.index(stage)
+            ]
+            full_data["replicate"] = str(replicate)
+            full_data = full_data.loc[full_data["kh_id"] == kh_id]
+
+            data = pd.concat([data, full_data])
+
+    data["stage"] = data["stage"].astype("category")
+    data["stage"] = data["stage"].cat.reorder_categories(BULK_RNA_SEQ_STAGES_AS_STRINGS)
+    data.sort_values(by="stage", inplace=True)
+
+    return data
 
 
 def plot_bulk_rna_seq_expression(
@@ -1225,6 +1259,7 @@ def plot_bulk_rna_seq_expression(
     adjust_ylimits=False,
     override_kh_id: str | None = None,
     override_gene_symbol: str | None = None,
+    replicate_colors: dict[str, str] = REPLICATE_COLORS,
 ):
     """Plot bulk RNA-seq expression data for a given KH ID across developmental stages.
 
@@ -1242,6 +1277,7 @@ def plot_bulk_rna_seq_expression(
         adjust_ylimits (bool): Whether to adjust y-limits
         override_kh_id (str | None): Override KH ID
         override_gene_symbol (str | None): Override gene symbol
+        replicate_colors (dict[str, str]): Colors for replicates
 
     Returns:
         plotly.graph_objects.Figure: Expression plot
@@ -1269,29 +1305,14 @@ def plot_bulk_rna_seq_expression(
     data = pd.DataFrame()
 
     data_dirpath = Path(data_dirpath)
-
-    for stage in BULK_RNA_SEQ_STAGES:
-        for replicate in BULK_RNA_SEQ_REPLICATES:
-            full_data = pd.read_csv(
-                data_dirpath / f"Cirobu_RNA-Seq_stage{stage}_WT_Replicate{replicate}.csv",
-                sep=";",
-            )
-            full_data.rename(columns={"Unnamed: 0": "kh_id"}, inplace=True)
-            full_data["stage"] = f"S{stage}"
-            full_data["percent_development"] = BULK_RNA_SEQ_PERCENT_DEVELOPMENT[
-                BULK_RNA_SEQ_STAGES.index(stage)
-            ]
-            full_data["replicate"] = str(replicate)
-            full_data = full_data.loc[full_data["kh_id"] == kh_id]
-
-            data = pd.concat([data, full_data])
+    data = _extract_bulk_rna_seq_data(kh_id, data_dirpath)
 
     fig = px.line(
         data,
         x=spacing,
         y=datatype,
         color="replicate",
-        color_discrete_map={"1": apc.umber.hex_code, "2": apc.canary.hex_code},
+        color_discrete_map=replicate_colors,
         markers=True,
     )
 
@@ -1333,6 +1354,175 @@ def plot_bulk_rna_seq_expression(
         )
     elif spacing == "stage":
         pass
+
+    if image_filepath is not None:
+        fig.write_image(image_filepath)
+
+    if html_filepath is not None:
+        fig.write_html(html_filepath, config=create_save_fig_config(width, height))
+
+    return fig
+
+
+def _append_range_traces(
+    stage_summaries: pd.DataFrame,
+    fig: go.Figure,
+):
+    # Add a line for the maximum expression.
+    trace0 = go.Scatter(
+        x=stage_summaries["stage"],
+        y=stage_summaries["stage_max"],
+        mode="lines",
+        line_color=apc.oat,
+        showlegend=False,
+    )
+    fig.add_trace(trace0)
+
+    # Add a line for the minimum expression, filled between the maximum and minimum.
+    trace1 = go.Scatter(
+        x=stage_summaries["stage"],
+        y=stage_summaries["stage_min"],
+        fill="tonexty",  # fill area between trace0 and trace1
+        mode="lines",
+        line_color=apc.oat,
+        showlegend=False,
+    )
+    fig.add_trace(trace1)
+
+    # Add a line for the mean expression.
+    trace2 = go.Scatter(
+        x=stage_summaries["stage"],
+        y=stage_summaries["stage_mean"],
+        mode="lines",
+        line=dict(color=apc.canary),
+        name="Mean",
+    )
+    fig.add_trace(trace2)
+
+
+def _append_replicate_traces(
+    data: pd.DataFrame,
+    spacing: Literal["stage", "percent_development"],
+    fig: go.Figure,
+    replicate_colors: dict[str, str] = REPLICATE_COLORS,
+    datatype: BulkRNASeqDataTypes = BulkRNASeqDataTypes.FPKM,
+):
+    for replicate in BULK_RNA_SEQ_REPLICATES:
+        replicate_data = data[data["replicate"] == str(replicate)]
+
+        trace1 = go.Scatter(
+            x=replicate_data[spacing],
+            y=replicate_data[datatype],
+            marker=dict(color=replicate_colors[str(replicate)]),
+            mode="markers",
+            name=f"Replicate {replicate}",
+        )
+        fig.add_trace(trace1)
+
+
+def plot_bulk_rna_seq_expression_range(
+    input_id,
+    input_id_type,
+    mapper: IdentifierMapper,
+    data_dirpath: str | Path = BULK_RNA_SEQ_DATA_DIRPATH,
+    datatype=BulkRNASeqDataTypes.FPKM,
+    width=400,
+    height=250,
+    image_filepath: str | Path | None = None,
+    html_filepath: str | Path | None = None,
+    spacing: Literal["stage", "percent_development"] = "stage",
+    override_kh_id: str | None = None,
+    override_gene_symbol: str | None = None,
+    replicate_colors: dict[str, str] = REPLICATE_COLORS,
+):
+    """Plot bulk RNA-seq expression data for a given KH ID across developmental stages.
+
+    Args:
+        input_id (str): Input ID of gene to plot
+        input_id_type (CionaIDTypes): Type of input ID
+        mapper (IdentifierMapper): Identifier mapper
+        data_dirpath (str | Path): Path to data directory
+        datatype (BulkRNASeqDataTypes): Expression data type to plot
+        width (int): Plot width
+        height (int): Plot height
+        image_filepath (str | Path): Path to save image
+        html_filepath (str | Path): Path to save HTML
+        spacing (Literal["uniform", "scaled"]): Spacing of x-axis
+        adjust_ylimits (bool): Whether to adjust y-limits
+        override_kh_id (str | None): Override KH ID
+        override_gene_symbol (str | None): Override gene symbol
+
+    Returns:
+        plotly.graph_objects.Figure: Expression plot
+    """
+    kh_id = input_id
+    hgnc_gene_symbol = input_id
+
+    try:
+        all_ciona_ids = mapper.map_to_all(input_id, input_id_type)
+        if not pd.isna(all_ciona_ids[CionaIDTypes.KH_ID]):
+            kh_id = "KH2012:" + all_ciona_ids[CionaIDTypes.KH_ID]
+            hgnc_gene_symbol = all_ciona_ids[CionaIDTypes.HGNC_GENE_SYMBOL]
+        else:
+            if override_kh_id is None:
+                print(f"No KH ID found for {input_id}. Try override_kh_id.")
+    except ValueError:
+        pass
+
+    if override_kh_id is not None:
+        kh_id = "KH2012:" + override_kh_id
+
+    if override_gene_symbol is not None:
+        hgnc_gene_symbol = override_gene_symbol
+
+    data = _extract_bulk_rna_seq_data(kh_id, data_dirpath)
+
+    fig = go.Figure()
+
+    stage_summaries = (
+        data.groupby("stage", observed=True)
+        .agg(
+            stage_max=(datatype, "max"),
+            stage_min=(datatype, "min"),
+            stage_mean=(datatype, "mean"),
+        )
+        .reset_index()
+    )
+
+    _append_range_traces(stage_summaries, fig)
+    _append_replicate_traces(data, spacing, fig, replicate_colors, datatype)
+
+    fig.update_layout(
+        xaxis_title=spacing.title().replace("_", " "),
+        yaxis_title=datatype,
+        width=width,
+        height=height,
+        legend=dict(yanchor="top", y=1.02, xanchor="left", x=1),
+        margin=dict(t=50),
+    )
+
+    title = f"Expression of {hgnc_gene_symbol} ({kh_id})<br>in bulk RNA-Seq"
+
+    fig.add_annotation(
+        text=title,
+        xref="paper",
+        yref="paper",
+        x=0.5,
+        xanchor="center",
+        y=1.4,
+        showarrow=False,
+        align="center",
+        font=dict(
+            size=15,
+            family=PLOTLY_TITLE_FONT,
+        ),
+    )
+
+    fig.update_layout(legend_traceorder="normal")
+    fig.update_xaxes(tickangle=45)
+
+    apc.plotly.set_yticklabel_monospaced(fig)
+    apc.plotly.set_xticklabel_monospaced(fig)
 
     if image_filepath is not None:
         fig.write_image(image_filepath)
