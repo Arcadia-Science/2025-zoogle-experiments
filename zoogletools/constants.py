@@ -8,6 +8,11 @@ GRAY_GRADIENT = (
     .reverse()
 )
 
+CINNABAR_GRADIENT = apc.Gradient(
+    name="cinnabars", colors=[apc.melon, apc.dragon, apc.cinnabar, apc.redwood]
+).interpolate_lightness()
+
+
 DEFAULT_FUNNEL_COLOR_LIST = [
     apc.aster,
     apc.lapis,

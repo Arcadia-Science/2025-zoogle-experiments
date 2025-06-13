@@ -904,6 +904,202 @@ def plot_expression_umap_for_all_stages(
         )
 
 
+PUB_COLORBAR_PARAMS = dict(
+    outlinewidth=0,
+    thickness=10,
+    ypad=0,
+    len=0.8,
+    y=1.05,
+    x=1,
+    xref="paper",
+    yref="paper",
+    yanchor="bottom",
+    xanchor="right",
+    tickfont=dict(
+        size=12,
+        family=apc.style_defaults.MONOSPACE_FONT_PLOTLY,
+    ),
+    orientation="h",
+)
+
+
+def plot_single_expression_umap(
+    stage: CionaStage,
+    input_id: str,
+    input_id_type: CionaIDTypes,
+    mapper: IdentifierMapper,
+    data_dirpath: str | Path = PIEKARZ_DATA_DIRPATH,
+    annotation_data_dirpath: str | Path = CAO_DATA_DIRPATH,
+    plot_type: Literal[
+        "seurat_clusters", "expression", "tissue_type", "cell_tissue_type"
+    ] = "seurat_clusters",
+    expression_colormap: apc.Gradient = GRAY_GRADIENT,
+    null_expression_color: str = apc.gray,
+    expression_colorbar_params: dict = DEFAULT_COLORBAR_PARAMS,
+    marker_size: int = 3,
+    width: int = 200,
+    height: int = 300,
+    image_filepath: str | Path | None = None,
+    html_filepath: str | Path | None = None,
+) -> go.Figure:
+    """Plot UMAP visualizations of gene expression and cell type annotations.
+
+    Args:
+        stage: The developmental stage to plot
+        input_id: The gene identifier to plot
+        input_id_type: The type of the input identifier
+        data_dirpath: Path to the Piekarz scRNA-seq data directory
+        annotation_data_dirpath: Path to the Cao annotation data directory
+        mapper: IdentifierMapper instance for ID conversion
+
+    Returns:
+        A plotly Figure object with 4 UMAP plots showing:
+        - Seurat clusters
+        - Gene expression
+        - Cluster tissue types
+        - Cell tissue types
+    """
+    data_dirpath = Path(data_dirpath)
+
+    adata = load_ciona_scrnaseq_data(stage, data_dir=data_dirpath)
+
+    umap_df = extract_umap_coordinates(adata)
+    umap_df = _merge_cluster_annotations(
+        umap_df,
+        stage,
+        data_dirpath / "cluster_annotations" / "Ciona_scRNAseq_cluster_annotations.tsv",
+    )
+    umap_df = _merge_tissue_types(umap_df, stage, annotation_data_dirpath)
+    umap_df.sort_values(["top_cluster_tissue_type", "top_cluster_suffix"], inplace=True)
+
+    all_ciona_ids = mapper.map_to_all(input_id, input_id_type)
+
+    ky_id = all_ciona_ids[CionaIDTypes.KY_ID]
+    hgnc_gene_symbol = all_ciona_ids[CionaIDTypes.HGNC_GENE_SYMBOL]
+
+    umap_df = _add_gene_expression(umap_df, adata, ky_id)
+
+    fig = go.Figure()
+
+    position = None
+    t_margin = 40
+    r_margin = 10
+    title_offset = 1.1
+
+    if plot_type == "seurat_clusters":
+        append_seurat_clusters_trace(
+            fig,
+            umap_df,
+            position,
+            title="Seurat cluster",
+        )
+    elif plot_type == "expression":
+        append_expression_trace(
+            fig,
+            umap_df,
+            position,
+            title=f"<i>{hgnc_gene_symbol}</i> ({ky_id})",
+            expression_colormap=expression_colormap,
+            null_expression_color=null_expression_color,
+            expression_colorbar_params=expression_colorbar_params,
+        )
+        t_margin += 100
+        height += 100
+        title_offset += 0.25
+    elif plot_type == "tissue_type":
+        append_tissue_type_trace(fig, umap_df, position, title="Cluster tissue type")
+        _append_tissue_type_legend(
+            fig,
+            legend_x=1.015,
+            legend_y=1,
+            y_offset=0.09,
+            title_offset=0.03,
+        )
+        r_margin += 100
+        width += 100
+    elif plot_type == "cell_tissue_type":
+        append_cell_tissue_type_trace(fig, umap_df, position, title="Cell tissue type")
+        _append_tissue_type_legend(
+            fig,
+            legend_x=1.015,
+            legend_y=1,
+            y_offset=0.09,
+            title_offset=0.03,
+        )
+        r_margin += 100
+        width += 100
+
+    # Add UMAP axis labels.
+    fig.add_annotation(
+        text="UMAP1",
+        x=0,
+        y=0,
+        xref="x domain",
+        yref="y domain",
+        xanchor="left",
+        yanchor="top",
+        showarrow=False,
+        font=dict(
+            size=10,
+            color=apc.steel,
+        ),
+    )
+    fig.add_annotation(
+        text="UMAP2",
+        x=0,
+        y=0,
+        xref="x domain",
+        yref="y domain",
+        xanchor="right",
+        yanchor="bottom",
+        textangle=-90,
+        showarrow=False,
+        font=dict(
+            size=10,
+            color=apc.steel,
+        ),
+    )
+
+    fig.add_annotation(
+        text=f"<i>{hgnc_gene_symbol}</i> at {stage}",
+        x=0.2,
+        y=title_offset,
+        xref="paper",
+        yref="paper",
+        xanchor="left",
+        yanchor="top",
+        showarrow=False,
+        font=dict(
+            size=16,
+            family=PLOTLY_TITLE_FONT,
+        ),
+    )
+
+    fig.update_layout(
+        width=width,
+        height=height,
+        margin=dict(
+            l=15,
+            r=r_margin,
+            t=t_margin,
+        ),
+    )
+    fig.update_traces(marker=dict(size=marker_size))
+
+    apc.plotly.hide_xaxis_ticks(fig)
+    apc.plotly.hide_yaxis_ticks(fig)
+
+    if image_filepath:
+        os.makedirs(os.path.dirname(image_filepath), exist_ok=True)
+        fig.write_image(image_filepath)
+
+    if html_filepath:
+        os.makedirs(os.path.dirname(html_filepath), exist_ok=True)
+        fig.write_html(html_filepath, config=create_save_fig_config(width=width, height=height))
+
+    return fig
+
+
 def get_tissue_expression_data(
     input_id,
     input_id_type,
