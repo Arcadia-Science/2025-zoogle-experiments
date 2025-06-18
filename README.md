@@ -27,12 +27,11 @@ This repository contains the code for the 2025 Zoogle experiments. This includes
 
 1. Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
 1. Generate mapping files between Ciona gene IDs and other identifiers.
-2. [TBI] Generate scatter plots and other plots of Ciona gene expression.
+1. Generate scatter plots and other plots of Ciona gene expression.
 
 ### Utilities
 
 1. Utility to generate a scatter plot of best hits from each organism for a given gene, *a la* the organism selection publication.
-1. [TBI] `dash` app for exploring the Ciona scRNA-Seq data.
 
 ## Installation and Setup
 
