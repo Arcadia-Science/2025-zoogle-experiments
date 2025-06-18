@@ -951,13 +951,15 @@ def plot_single_expression_umap(
         data_dirpath: Path to the Piekarz scRNA-seq data directory
         annotation_data_dirpath: Path to the Cao annotation data directory
         mapper: IdentifierMapper instance for ID conversion
+        plot_type: The type of plot to generate.
+        expression_colormap: The colormap to use for the expression plot.
+        null_expression_color: The color to use for cells with no expression.
+        expression_colorbar_params: The parameters to use for the expression colorbar.
+        marker_size: The size of the markers in the plot.
+        width: The width of the plot.
 
     Returns:
-        A plotly Figure object with 4 UMAP plots showing:
-        - Seurat clusters
-        - Gene expression
-        - Cluster tissue types
-        - Cell tissue types
+        A plotly Figure object containing a single UMAP plot.
     """
     data_dirpath = Path(data_dirpath)
 
