@@ -4,26 +4,32 @@
 
 ## Purpose
 
-This repository contains the code for the 2025 Zoogle experiments. This includes code and utilities for the following analyses.
-[TBI] indicates that the code has been implemented in another branch but needs polishing before it's ready for review.
+This repository accompanies three pubs:
+- [A framework for modeling human monogenic diseases by deploying organism selection](https://doi.org/10.57844/arcadia-ugg5-emyd)
+- [Modeling human monogenic diseases using the choanoflagellate *Salpingoeca rosetta*](https://doi.org/10.57844/arcadia-bp0f-v1xx)
+- [Modeling human monogenic diseases using the tunicate *Ciona intestinalis*](https://doi.org/10.57844/arcadia-084m-a3v2)
+
+Most of the code in this repository is used to process and visualize the data used in the latter two of these publications. Please refer to the individual publications for links to the code in this repository that is relevant to each publication.
+
+## Overview of computational analysis
 
 ### Organism selection data download and processing
 
-1. Download organism selection data and human disease data from S3 and URLs. This includes data from the following sources:
-    - Original RAAS dataset from back in 2024 [here](https://github.com/Arcadia-Science/raas-organism-prioritization). This is different from the published Zenodo dataset because it includes bootstrapped row- and column-wise p-values, which were used to generate the Discovery score in Compass.
+1. Download organism selection data and human disease data. This includes data from the following sources:
+    - The 2024 organism selection dataset on Zenodo [here](https://zenodo.org/records/15693939). We use v1.1.
     - Processed Orphanet data from Compass.
     - ClinVar gene-condition-source-id mapping.
     - HGNC gene set.
     - Species tree from speciesRAX.
-1. Process downloaded data so that it's tidy and usable for filtering scripts.
-1. Run filtering scripts.
+2. Process downloaded data so that it's tidy and usable for filtering scripts.
+3. Run filtering scripts.
 
-### Salpingoeca rosetta RNA-Seq analysis.
+### *Salpingoeca rosetta* RNA-Seq analysis.
 
 1. Download processed RNA-Seq data from Figshare.
 1. Generate bar plots and heatmaps of *Salpingoeca rosetta* gene expression.
 
-### Ciona scRNA-Seq and RNA-Seq analysis.
+### *Ciona intestinalis* scRNA-Seq and RNA-Seq analysis.
 
 1. Download processed scRNA-Seq and RNA-Seq data from Figshare and other sources.
 1. Generate mapping files between Ciona gene IDs and other identifiers.
